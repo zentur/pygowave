@@ -35,6 +35,7 @@ from pygowave_server.common.operations import OpManager, DOCUMENT_DELETE, DOCUME
 __author__ = "patrick.p2k.schneider@gmail.com"
 
 ROOT_WAVELET_ID_SUFFIX = '!conv+root'
+DOMAIN = 'wave.ferrum-et-magica.de'
 
 # Note: The term 'client' specifies all entities, that directly communicate
 #       with this server by the means of a proprietary protocol.
@@ -165,6 +166,7 @@ class Wave(models.Model):
 	objects = WaveManager()
 	
 	id = models.CharField(max_length=42, primary_key=True) # Don't panic :P
+	domain = models.CharField(max_length=255, blank=True)  # Asume waves and wavelets with no domain to be hosted locally(?)
 	
 	def root_wavelet(self):
 		return self.wavelets.get(is_root=True)
@@ -199,6 +201,7 @@ class Wavelet(models.Model):
 	version = models.IntegerField(default=0)
 	participants = models.ManyToManyField(Participant, related_name="wavelets")
 	participant_conns = models.ManyToManyField(ParticipantConn, blank=True, related_name="wavelets", verbose_name=_(u'connections'))
+	domain = models.CharField(max_length=255, blank=True)  # Asume waves and wavelets with no domain to be hosted locally(?)
 	
 	def blipById(self, id):
 		"""
@@ -225,23 +228,43 @@ class Wavelet(models.Model):
 	def __unicode__(self):
 		return u"Wavelet '%s' (%s)" % (self.title, self.id)
 	
+	def wavelet_name(self):
+		"""
+		create the "fully qualified" wavelet-name needed for federation
+		
+		"""
+		delim = ''
+		wavelet_domain = self.domain or DOMAIN
+		if self.wave.domain and self.wave.domain != wavelet_domain:
+			wave_domain = self.wave.domain
+			delim = '$'
+
+		wavelet_name = '%s/%s%s%s/%s' % (wavelet_domain,
+                                         self.wave.domain ,
+		                                 delim,
+		                                 self.wave.id,
+		                                 self.id)
+		return wavelet_name
+
 	def serialize(self):
 		"""
 		Serialize the wavelet into a format that is compatible with robots and
 		the client.
 		
 		"""
+		
 		return {
 			"rootBlipId": getattr(self.root_blip, "id", None),
 			"title": self.title,
 			"creator": self.creator.id,
 			"creationTime": datetime2milliseconds(self.created),
 			"dataDocuments": None, #TODO (is not declared in the robot protocol example)
-			"waveletId": self.id,
+			"waveletId": self.id, 
 			"participants": map(lambda p: p.id, self.participants.all()),
 			"version": self.version,
 			"lastModifiedTime": datetime2milliseconds(self.last_modified),
 			"waveId": self.wave.id,
+			"wavelet-name": self.wavelet_name() #added for federation support - Murk1108  
 		}
 	
 	def serialize_blips(self):
@@ -742,7 +765,7 @@ class Delta(models.Model):
 		"""
 		opman = getattr(self, "_OpManager", None)
 		if opman == None:
-			opman = OpManager(self.wavelet.wave.id, self.wavelet.id)
+			opman = OpManager(self.wavelet.wave.id, self.wavelet.id, self.wavelet.wavelet_name())
 			opman.unserialize(simplejson.loads(self.operations))
 			self._OpManager = opman
 		

@@ -28,7 +28,6 @@ import datetime
 from twisted.words.protocols.jabber import jid, xmlstream
 from twisted.application import internet, service
 from twisted.internet import interfaces, defer, reactor
-from twisted.python import log
 from twisted.words.xish import domish
 from twisted.words.xish import xpath
 from twisted.words.protocols.jabber.ijabber import IService
@@ -40,8 +39,9 @@ from django.utils import simplejson
 
 import common_pb2
 import base64
+import pygowave_server.common.operations
 
-# includes fro txamqp
+# includes for txamqp
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.protocol import ClientCreator
 from txamqp.protocol import AMQClient
@@ -52,25 +52,44 @@ PRESENCE = '/presence' # this is an global xpath query to use in an observer
 MESSAGE  = '/message'  # message xpath 
 IQ       = '/iq'       # iq xpath
 
+NS_XMPP_RECEIPTS = "urn:xmpp:receipts";
+NS_DISCO_INFO = "http://jabber.org/protocol/disco#info";
+NS_DISCO_ITEMS = "http://jabber.org/protocol/disco#items";
+NS_PUBSUB = "http://jabber.org/protocol/pubsub";
+NS_PUBSUB_EVENT = "http://jabber.org/protocol/pubsub#event";
+NS_WAVE_SERVER = "http://waveprotocol.org/protocol/0.2/waveserver";
+
 #FIXME - get this from settings file
 jid = 'wave.ferrum-et-magica.de'
 
 
-class LogService(component.Service):
-    """
-    A service to log incoming and outgoing xml to and from our XMPP component.
+def convPbToOp(pb):
+    pbop = common_pb2.ProtocolWaveletOperation()
+    pbop.ParseFromString(pb)
 
-    """
+    print "ProtocolWaveletOperation contains this operation(s):"
+    for desc, val in pbop.ListFields():
+        print desc.name, val
+
+#    if b
+
+def convOpToPb(body):
+    pbop = common_pb2.ProtocolWaveletOperation()
     
-    def transportConnected(self, xmlstream):
-        xmlstream.rawDataInFn = self.rawDataIn
-        xmlstream.rawDataOutFn = self.rawDataOut
+    if body['type'] == 'WAVELET_ADD_PARTICIPANT':
+        participant = body['property']
+        pbop.add_participant = participant
 
-    def rawDataIn(self, buf):
-        log.msg("%s - RECV: %s" % (str(time.time()), unicode(buf, 'utf-8').encode('ascii', 'replace')))
-
-    def rawDataOut(self, buf):
-        log.msg("%s - SEND: %s" % (str(time.time()), unicode(buf, 'utf-8').encode('ascii', 'replace')))
+    elif body['type'] == 'OPERATION_MESSAGE_BUNDLE':
+        operations = body['property']['operations']
+        for op in operations:
+            if op['type'] == 'DOCUMENT_INSERT':
+                #XXX: i think, the blibId is the document id...
+                pbop.mutate_document.document_id = op['blipId']
+                #pbop.mutate_document.document_operation 
+                    
+#{"type":"DOCUMENT_INSERT","waveId":"CH0H59rYDc","waveletId":"CH0H59rYDc!conv+root","blipId":"X73f7P7ngh","index":31,"property":"s"} 
+    return pbop.SerializeToString()
 
 
 class WaveFederationService(component.Service):
@@ -140,12 +159,8 @@ class WaveFederationService(component.Service):
 
                 for applied_delta in xpath.XPathQuery('/message/event/items/item/wavelet-update/applied-delta').queryForNodes(msg):
                     content = str(applied_delta) #holy api failure
-                    pbop = common_pb2.ProtocolWaveletOperation()
-                    pbop.ParseFromString(base64.b64decode(content))
+                    op = convPbToOp(base64.b64decode(content))
 
-                    print "received wavelet-update contained this operation(s):"
-                    for desc, val in pbop.ListFields():
-                        print desc.name, val
 
                 reply = domish.Element((None, 'message'))
                 reply.attributes['id'] = msg.attributes['id']
@@ -236,74 +251,32 @@ class WaveFederationService(component.Service):
         participant_conn_key, wavelet_id, message_category = rkey.split(".")
         body = simplejson.loads(msg.content.body)
 
+        data = base64.b64encode(convOpToPb(body))
 
-        if body['type'] == 'WAVELET_ADD_PARTICIPANT':
-            participant = body['property']
+        if not data:
+            print "data not set - skipping"
+            return
 
-            if participant.endswith('@localhost'):
-                to = 'wave.ferrum-et-magica.de'
-            else:
-                to = participant.split('@')[1]
+        message = domish.Element((None, 'message'))
+        message.attributes['type'] = 'normal'
+        message.attributes['to'] = self.jabberId
+        message.attributes['from'] = self.jabberId
+        message.addUniqueId()
 
-            pbop = common_pb2.ProtocolWaveletOperation()
-            pbop.add_participant = participant
-            data = base64.b64encode(pbop.SerializeToString())
+        request = message.addElement((NS_XMPP_RECEIPTS, 'request'))
+        event   = message.addElement((NS_PUBSUB_EVENT, 'event'))
 
-            message = domish.Element((None, 'message'))
-            message.attributes['type'] = 'normal'
-            message.attributes['to'] = to
-            message.attributes['from'] = jid
-            message.addUniqueId()
+        items   = event.addElement((None, 'items'))
+        item    = items.addElement((None, 'item'))
 
-            request = message.addElement(('urn:xmpp:receipts', 'request'))
-            event   = message.addElement(('http://jabber.org/protocol/pubsub#event', 'event'))
+        wavelet_update = item.addElement((NS_WAVE_SERVER, 'wavelet-update'))
+        wavelet_update.attributes['wavelet-name'] = wavelet_id
 
-            items   = event.addElement((None, 'items'))
+        applied_delta = wavelet_update.addElement((None, 'applied-delta'))
+        applied_delta.addRawXml('<![CDATA[%s]]>' % (data))
 
-            item    = items.addElement((None, 'item'))
+        self.xmlstream.send(message)
 
-            wavelet_update = item.addElement(('http://waveprotocol.org/protocol/0.2/waveserver', 'wavelet-update'))
-            wavelet_update.attributes['wavelet-name'] = wavelet_id
-
-            applied_delta = wavelet_update.addElement((None, 'applied-delta'))
-            applied_delta.addRawXml('<![CDATA[%s]]>' % (data))
-
-            self.xmlstream.send(message)
-
-        elif body['type'] == 'OPERATION_MESSAGE_BUNDLE':
-            #TODO: lookup participants of the wave and send the update to their federation remote if they are not local
-            to = 'wave.ferrum-et-magica.de'
-
-            operations = body['property']['operations']
-        
-            # NOTE: the wavelet-update message is only used if the wavelet is hosted locally
-            #       Operations for remote hosted wavelets must use a submit request
-            for op in operations:
-                # format the operations as "base64-encoded serialized protocol buffer" as the spec says
-                pbop = common_pb2.ProtocolWaveletOperation() 
-                data = base64.b64encode(pbop.SerializeToString())
-
-                message = domish.Element((None, 'message'))
-                message.attributes['type'] = 'normal'
-                message.attributes['to'] = to
-                message.attributes['from'] = jid
-                message.addUniqueId()
-
-                request = message.addElement(('urn:xmpp:receipts', 'request'))
-                event   = message.addElement(('http://jabber.org/protocol/pubsub#event', 'event'))
-
-                items   = event.addElement((None, 'items'))
-            
-                item    = items.addElement((None, 'item'))
-
-                wavelet_update = item.addElement(('http://waveprotocol.org/protocol/0.2/waveserver', 'wavelet-update'))
-                wavelet_update.attributes['wavelet-name'] = wavelet_id
-
-                applied_delta = wavelet_update.addElement((None, 'applied-delta'))
-                applied_delta.addRawXml('<![CDATA[%s]]>' % (data))
-
-                self.xmlstream.send(message)
-        
 
 #    def processFeedData(self, title, entry):
 #
