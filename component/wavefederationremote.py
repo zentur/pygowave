@@ -22,12 +22,7 @@
 """
 import base64
 
-from twisted.words.protocols.jabber import jid, xmlstream
-from twisted.internet import interfaces, defer, reactor
 from twisted.words.xish import domish, xpath
-from twisted.words.protocols.jabber.ijabber import IService
-
-from zope.interface import Interface, implements
 
 from django.utils import simplejson
 
@@ -42,7 +37,6 @@ class WaveFederationRemote(WaveFederationService):
     PyGoWave XMPP Federation Remote.
 
     """
-    implements(IService)
 
 
     def onMessage(self, msg):

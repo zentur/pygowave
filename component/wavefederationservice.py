@@ -21,23 +21,9 @@
 
 """
 
-import time
-import datetime
-from twisted.words.protocols.jabber import jid, xmlstream
-from twisted.application import internet, service
-from twisted.internet import interfaces, defer, reactor
-from twisted.words.xish import domish
-from twisted.words.xish import xpath
-from twisted.words.protocols.jabber.ijabber import IService
-from twisted.words.protocols.jabber import component
+from twisted.words.protocols.jabber import jid, xmlstream, component
+from twisted.words.xish import domish, xpath
 
-from zope.interface import Interface, implements
-
-from django.utils import simplejson
-
-import common_pb2
-import base64
-import pygowave_server.common.operations
 
 PRESENCE = '/presence' # this is an global xpath query to use in an observer
 MESSAGE  = '/message'  # message xpath 
@@ -56,7 +42,6 @@ class WaveFederationService(component.Service):
     Common class for WaveFederationHost and WaveFederationRemote
 
     """
-    implements(IService)
 
 
     def __init__(self):

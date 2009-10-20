@@ -22,13 +22,8 @@
 """
 import base64
 
-from twisted.words.protocols.jabber import jid, xmlstream
-from twisted.internet import interfaces, defer, reactor
+from twisted.words.protocols.jabber import xmlstream, component
 from twisted.words.xish import domish, xpath
-from twisted.words.protocols.jabber.ijabber import IService
-from twisted.words.protocols.jabber import component
-
-from zope.interface import Interface, implements
 
 from django.utils import simplejson
 
@@ -39,6 +34,7 @@ from wavefederationservice import WaveFederationService, NS_XMPP_RECEIPTS, NS_DI
 from wavefederationservice import NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
 # includes for txamqp
+from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.protocol import ClientCreator
 from txamqp.protocol import AMQClient
@@ -53,7 +49,6 @@ class WaveFederationHost(WaveFederationService):
     For now, we simply skip the whole protocol buffer part and send
     data in pygowave specific JSON
     """
-    implements(IService)
 
 
     def __init__(self):
