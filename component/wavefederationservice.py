@@ -46,7 +46,8 @@ class WaveFederationService(component.Service):
 
     def __init__(self):
         # XEP-0184 says we MUST include the feature if we use/support it
-        self.features = { 'urn:xmpp:receipts': None
+        self.features = { NS_XMPP_RECEIPTS: None,
+                          NS_DISCO_INFO: None
         }
         # No registration support for now
         # self.registrationManager = register.RegistrationManager(self)

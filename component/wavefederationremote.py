@@ -43,23 +43,20 @@ class WaveFederationRemote(WaveFederationService):
         """
         Act on the message stanza that has just been received.
 
+        @param msg the message stanza received
 
-        Response to wavelet-update should look like this:
-
-        <message id="1-1" from="wave.acmewave.com" to="wave.initech-corp.com">
-            <received xmlns="urn:xmpp:receipts"/>
-        </message>
         """
 
 
         for el in msg.elements():
             if el.name == 'request':
                 for wavelet_update in xpath.XPathQuery('/message/event/items/item/wavelet-update').queryForNodes(msg):
-                    waveletId = wavelet_update.attributes['wavelet-name']
+                    waveletName = wavelet_update.attributes['wavelet-name']
 
                 for applied_delta in xpath.XPathQuery('/message/event/items/item/wavelet-update/applied-delta').queryForNodes(msg):
                     content = str(applied_delta) #holy api failure
                     op = convPbToOp(base64.b64decode(content))
+                    print "Received operation: %s, for wavelet: %s" %(op, waveletName)
 
 
                 reply = domish.Element((None, 'message'))
@@ -83,13 +80,13 @@ class WaveFederationRemote(WaveFederationService):
         for query in iq.elements():
             xmlns = query.uri
 
-            if xmlns == 'http://jabber.org/protocol/disco#info':
+            if xmlns == NS_DISCO_INFO:
                 self.sendDiscoInfoResponse(to=jidfrom, id=id)
 
 
-            for (feature, handler) in self.features.items():
-                if xmlns == feature:
-                    handler(iq)
+#            for (feature, handler) in self.features.items():
+#                if xmlns == feature:
+#                    handler(iq)
         
 
     def sendDiscoInfoResponse(self, to, id):
@@ -99,12 +96,12 @@ class WaveFederationRemote(WaveFederationService):
         iq.attributes['from'] = self.jabberId
         iq.attributes['id']   = id
 
-        query = iq.addElement('query')
-        query.attributes['xmlns'] = 'http://jabber.org/protocol/disco#info'
+        query = iq.addElement((NS_DISCO_INFO, 'query'))
 
         identity = query.addElement('identity')
-#        identity.attributes['category'] = 'jabber:iq:register'
         identity.attributes['name']     = 'PyGoWave'
+        identity.attributes['category'] = 'collaboration'
+        identity.attributes['type']     = 'pygowave'
 
         for key in self.features.keys():
             feature = query.addElement('feature')
@@ -112,3 +109,14 @@ class WaveFederationRemote(WaveFederationService):
 
         self.xmlstream.send(iq)
 
+
+    def submitRequest(self, waveletName):
+        """
+        sends a submit request to the remote federation host
+        called when a not locally hosted wave is changed by local participant
+
+        @param waveletName
+        """
+        #TODO: implement
+        print "Submit request for wavelet %s" % (waveletName)
+        

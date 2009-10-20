@@ -21,9 +21,8 @@
 
 """
 
-from twisted.words.protocols.jabber import xmlstream
-from twisted.python import log
 from twisted.words.protocols.jabber import component
+from twisted.python import log
 
 class LogService(component.Service):
     """

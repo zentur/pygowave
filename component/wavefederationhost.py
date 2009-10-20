@@ -22,7 +22,6 @@
 """
 import base64
 
-from twisted.words.protocols.jabber import xmlstream, component
 from twisted.words.xish import domish, xpath
 
 from django.utils import simplejson
@@ -33,14 +32,6 @@ from pygowave_server.models import Wavelet
 from wavefederationservice import WaveFederationService, NS_XMPP_RECEIPTS, NS_DISCO_INFO
 from wavefederationservice import NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
-# includes for txamqp
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks
-from twisted.internet.protocol import ClientCreator
-from txamqp.protocol import AMQClient
-from txamqp.client import TwistedDelegate
-import txamqp.spec
-
 
 class WaveFederationHost(WaveFederationService):
     """
@@ -50,42 +41,8 @@ class WaveFederationHost(WaveFederationService):
     data in pygowave specific JSON
     """
 
-
-    def __init__(self):
-        host = 'localhost'
-        port = 5672
-        vhost = '/'
-        username = 'pygowave_xmpp'
-        password = 'pygowave_xmpp'
-
-        spec = txamqp.spec.load('amqp0-8.xml')
-
-        delegate = TwistedDelegate()
-
-        d = ClientCreator(reactor, AMQClient, delegate=delegate, vhost=vhost,
-                spec=spec).connectTCP(host, port)
-
-        d.addCallback(self.gotAMQPConnection, username, password)
-
-        
     def processAMQPMessage(self, msg, chan):
         """
-        <message type='normal'
-            from='wave.ferrum-et-magica.de'
-            id='H_0' to='wavetester@ferrum-et-magica.de'>
-            <request xmlns='urn:xmpp:receipts'/>
-            <event xmlns='http://jabber.org/protocol/pubsub#event'>
-                <items>
-                    <item>
-                        <wavelet-update
-                            xmlns='http://waveprotocol.org/protocol/0.2/waveserver'
-                            wavelet-name='CH0H59rYDc!conv+root'>
-                            <applied-delta><![CDATA[ChJtdXJrdGVzdEBsb2NhbGhvc3Q=]]></applied-delta>
-                        </wavelet-update>
-                    </item>
-                </items>
-            </event>
-        </message>
 
         """
 
@@ -132,36 +89,5 @@ class WaveFederationHost(WaveFederationService):
                 applied_delta.addRawXml('<![CDATA[%s]]>' % (data))
 
                 self.xmlstream.send(message)
-
-
-    @inlineCallbacks
-    def gotAMQPConnection(self, conn, username, password):
-        print "Connected to broker."
-        yield conn.authenticate(username, password)
-
-        print "Authenticated. Ready to receive messages"
-        chan = yield conn.channel(1)
-        yield chan.channel_open()
-
-        yield chan.queue_declare(queue="federation", durable=True, exclusive=False, auto_delete=False)
-#        yield chan.exchange_declare(exchange="wavelet.topic", type="direct", durable=True, auto_delete=False)
-
-        yield chan.queue_bind(queue="federation", exchange="wavelet.topic", routing_key="#.#.clientop")
-
-        yield chan.basic_consume(queue='federation', no_ack=True, consumer_tag="testtag")
-
-        queue = yield conn.queue("testtag")
-
-#        self.processAMQPMessage('test')
-        while True:
-            msg = yield queue.get()
-            yield self.processAMQPMessage(msg, chan)
-            if msg.content.body == "STOP":
-                break
-
-        yield chan.basic_cancel("testtag")
-        yield chan.channel_close()
-        chan0 = yield conn.channel(0)
-        yield chan0.connection_close()
 
 
