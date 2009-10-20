@@ -252,14 +252,13 @@ class Wavelet(models.Model):
 		the client.
 		
 		"""
-		
 		return {
 			"rootBlipId": getattr(self.root_blip, "id", None),
 			"title": self.title,
 			"creator": self.creator.id,
 			"creationTime": datetime2milliseconds(self.created),
 			"dataDocuments": None, #TODO (is not declared in the robot protocol example)
-			"waveletId": self.id, 
+			"waveletId": self.id,
 			"participants": map(lambda p: p.id, self.participants.all()),
 			"version": self.version,
 			"lastModifiedTime": datetime2milliseconds(self.last_modified),
@@ -765,7 +764,7 @@ class Delta(models.Model):
 		"""
 		opman = getattr(self, "_OpManager", None)
 		if opman == None:
-			opman = OpManager(self.wavelet.wave.id, self.wavelet.id, self.wavelet.wavelet_name())
+			opman = OpManager(self.wavelet.wave.id, self.wavelet.id)
 			opman.unserialize(simplejson.loads(self.operations))
 			self._OpManager = opman
 		

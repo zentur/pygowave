@@ -19,11 +19,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 
- To be included in the pygowave.tac's application using a ServiceManager
-
 """
 
-from twisted.words.protocols.jabber import jid, xmlstream
+from twisted.words.protocols.jabber import xmlstream
 from twisted.python import log
 from twisted.words.protocols.jabber import component
 
