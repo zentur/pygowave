@@ -37,12 +37,25 @@ class WaveFederationHost(WaveFederationService):
     """
     PyGoWave XMPP component service using twisted words.
 
-    For now, we simply skip the whole protocol buffer part and send
-    data in pygowave specific JSON
+    This is the federation host part which according to the spec does the following:
+
+    * It pushes new wavelet operations that are applied to a local wavelet to the wave providers of any remote participants.
+    * It satisfies requests for old wavelet operations.
+    * It processes wavelet operations submission requests.
+
+    For now, we simply skip the whole protocol buffer part and send data in pygowave specific JSON
+
     """
+
+    #TODO Implement queueing of messages in case remote server is not online
 
     def processAMQPMessage(self, msg, chan):
         """
+        handle messages received from our local wave provider
+        filter messages we do not care about, initiate sending of messages to remote wave server
+
+        @param {Object} msg the message
+        @param {Object} chan the amqp channel
 
         """
 
@@ -64,8 +77,18 @@ class WaveFederationHost(WaveFederationService):
             return
 
         wavelet = Wavelet.objects.get(id=wavelet_id)
-        participants = wavelet.participants.all()
+        self.sendUpdate(wavelet, data)
 
+
+    def sendUpdate(self, wavelet, data):
+        """
+        send a wavelet update to each remote wave provider that is interested in this wavelet
+
+        @param {Wavelet} wavelet
+        @param {String} data
+
+        """
+        participants = wavelet.participants.all()
         for p in participants:
             if not p.id.endswith('@localhost'):
                 remote = p.id.split('@')[1]
@@ -90,4 +113,88 @@ class WaveFederationHost(WaveFederationService):
 
                 self.xmlstream.send(message)
 
+
+    def onIq(self, iq):
+        """
+        Handle incoming IQ stanzas and pass them to stanza-specific handlers
+
+        only reacts on messages meant for federation host, ignore the rest
+
+        @param {Element} iq
+
+        """
+        #TODO: use xpath here(?)
+        if iq.attributes['type'] == 'get':
+            child = iq.firstChildElement()
+
+            if child.attributes['xmlns'] == NS_PUBSUB:
+                #history request or signer request FIXME implement the later
+                self.onHistoryRequest(iq)
+
+        elif iq.attributes['type'] == 'result':
+            #nothing to do here
+            pass
+
+        elif iq.attributes['type'] == 'set':
+            child = iq.firstChildElement()
+            if child.attributes['xmlns'] == 'NS_PUBSUB':
+                #submit of wavelet delta or signer posts FIXME implement the later
+                self.onSubmitRequest(iq)
+        else:
+            #we ignore anything else for now, no error reporting
+            pass
+
+
+    def onHistoryRequest(self, request):
+        """
+        respond to incoming history request (stub)
+
+        @param {Element} request the history request received
+
+        """
+        #TODO fetch history and pack it
+
+        iq = domish.Element((None, 'iq'))
+        iq.attributes['type'] = 'result'
+        iq.attributes['from'] = self.jabberId
+        iq.attributes['to']   = request.attributes['from']
+        iq.attributes['id']   = request.attributes['id']
+
+        pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
+        items = pubsub.addElement((None, 'items'))
+
+        print "history response: %s" % (iq.toXml())
+        #self.xmlstream.send(iq)
+
+
+    def onSubmitRequest(self, request):
+        """
+        respond to submit request (remote server sending wavelet updates) (stub)
+
+        apply sent delta to the wavelet, ack the success or send error
+
+        @param {Element} request the submit request received
+        """
+
+        #TODO apply sent delta to wavelet
+
+        iq = domish.Element((None, 'iq'))
+        iq.attributes['type'] = 'result'
+        iq.attributes['from'] = self.jabberID
+        iq.attributes['to']   = request.attributes['from']
+        iq.attributes['id']   = request.attributes['id']
+
+        pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
+        publish = pubsub.addElement((None, 'pubslish'))
+        item = publish.addElement((None, 'item'))
+
+        submitResponse = item.addElement((NS_WAVE_SERVER, 'submit-response'))
+        submitResponse.attributes['application-timestamp'] = 123456789.0
+        submitResponse.attributes['operations-applied'] = 1
+
+        hashedVersion = submitResponse.addElement((None, 'hashed-version'))
+        hashedVersion.attributes['history-hash'] = ''
+        hashedVersion.attributes['version'] = 1
+
+        print "submit response: %s" % (iq.toXml())
 

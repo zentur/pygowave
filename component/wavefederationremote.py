@@ -34,7 +34,15 @@ from wavefederationservice import NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS
 
 class WaveFederationRemote(WaveFederationService):
     """
-    PyGoWave XMPP Federation Remote.
+    PyGoWave XMPP component service using twisted words.
+
+    This is the federation remote part which according to the spec does the following:
+
+    * It receives new wavelet operations pushed to it from the wave providers that host the wavelets.
+    * It requests old wavelet operations from the hosting wave providers.
+    * It submits wavelet operations to the hosting wave providers.
+
+    For now, we simply skip the whole protocol buffer part and send data in pygowave specific JSON
 
     """
 
@@ -43,7 +51,7 @@ class WaveFederationRemote(WaveFederationService):
         """
         Act on the message stanza that has just been received.
 
-        @param msg the message stanza received
+        @param {Element} msg the message stanza received
 
         """
 
@@ -72,29 +80,43 @@ class WaveFederationRemote(WaveFederationService):
         """
         Act on the iq stanza that has just been received.
 
+        @param {Element} iq
+
         """
 
-        jidfrom = iq.getAttribute('from')
-        id = iq.getAttribute('id')
+        if iq.attributes['type'] == 'get':
+            child = iq.firstChildElement()
+            if child.attributes['xmlns'] == 'NS_DISCO_INFO':
+                #service discovery
+                self.sendDiscoInfoResponse(iq)
+            if child.attributes['xmlns'] == 'NS_DISCO_ITEMS':
+                #service discovery
+                #TODO implement
+                pass
+        elif iq.attributes['type'] == 'result':
+            child = iq.firstChildElement()
+            if child.attributes['xmlns'] == 'NS_DISCO_INFO':
+                #service discovery
+                self.sendDiscoInfoResponse(iq)
+            if child.attributes['xmlns'] == 'NS_DISCO_ITEMS':
+                #service discovery
+                #TODO implement
+                pass
+        else:
+            #ignore everything else
+            pass
 
-        for query in iq.elements():
-            xmlns = query.uri
 
-            if xmlns == NS_DISCO_INFO:
-                self.sendDiscoInfoResponse(to=jidfrom, id=id)
+    def sendDiscoInfoResponse(self, iq):
+        """
 
+        """
 
-#            for (feature, handler) in self.features.items():
-#                if xmlns == feature:
-#                    handler(iq)
-        
-
-    def sendDiscoInfoResponse(self, to, id):
         iq = domish.Element((None, 'iq'))
         iq.attributes['type'] = 'result'
-        iq.attributes['to']   = to
         iq.attributes['from'] = self.jabberId
-        iq.attributes['id']   = id
+        iq.attributes['to']   = iq.attributes['from']
+        iq.attributes['id']   = iq.attributes['id']
 
         query = iq.addElement((NS_DISCO_INFO, 'query'))
 
@@ -115,7 +137,7 @@ class WaveFederationRemote(WaveFederationService):
         sends a submit request to the remote federation host
         called when a not locally hosted wave is changed by local participant
 
-        @param waveletName
+        @param {String} waveletName
         """
         #TODO: implement
         print "Submit request for wavelet %s" % (waveletName)
