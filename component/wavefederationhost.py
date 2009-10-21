@@ -29,11 +29,10 @@ from django.utils import simplejson
 import common_pb2
 from protobuf import convOpToPb, convPbToOp
 from pygowave_server.models import Wavelet
-from wavefederationservice import WaveFederationService, NS_XMPP_RECEIPTS, NS_DISCO_INFO
-from wavefederationservice import NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
+from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
 
-class WaveFederationHost(WaveFederationService):
+class WaveFederationHost(object):
     """
     PyGoWave XMPP component service using twisted words.
 
@@ -49,35 +48,8 @@ class WaveFederationHost(WaveFederationService):
 
     #TODO Implement queueing of messages in case remote server is not online
 
-    def processAMQPMessage(self, msg, chan):
-        """
-        handle messages received from our local wave provider
-        filter messages we do not care about, initiate sending of messages to remote wave server
-
-        @param {Object} msg the message
-        @param {Object} chan the amqp channel
-
-        """
-
-        print 'WaveFederationService received: ' + msg.content.body + ' from channel #' + str(chan.id)
-
-        #FIXME How to get the routing key the right way?
-        rkey = msg[4]
-        participant_conn_key, wavelet_id, message_category = rkey.split(".")
-        body = simplejson.loads(msg.content.body)
-
-        data = base64.b64encode(convOpToPb(msg.content.body))
-
-        if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN':
-            print "ignoring message"
-            return
-
-        if not data:
-            print "data not set - skipping"
-            return
-
-        wavelet = Wavelet.objects.get(id=wavelet_id)
-        self.sendUpdate(wavelet, data)
+    def __init__(self, service):
+        self.service = service
 
 
     def sendUpdate(self, wavelet, data):
@@ -96,7 +68,7 @@ class WaveFederationHost(WaveFederationService):
                 message = domish.Element((None, 'message'))
                 message.attributes['type'] = 'normal'
                 message.attributes['to'] = remote
-                message.attributes['from'] = self.jabberId
+                message.attributes['from'] = self.service.jabberId
                 message.addUniqueId()
 
                 request = message.addElement((NS_XMPP_RECEIPTS, 'request'))
@@ -111,38 +83,7 @@ class WaveFederationHost(WaveFederationService):
                 applied_delta = wavelet_update.addElement((None, 'applied-delta'))
                 applied_delta.addRawXml('<![CDATA[%s]]>' % (data))
 
-                self.xmlstream.send(message)
-
-
-    def onIq(self, iq):
-        """
-        Handle incoming IQ stanzas and pass them to stanza-specific handlers
-
-        only reacts on messages meant for federation host, ignore the rest
-
-        @param {Element} iq
-
-        """
-        #TODO: use xpath here(?)
-        if iq.attributes['type'] == 'get':
-            child = iq.firstChildElement()
-
-            if child.attributes['xmlns'] == NS_PUBSUB:
-                #history request or signer request FIXME implement the later
-                self.onHistoryRequest(iq)
-
-        elif iq.attributes['type'] == 'result':
-            #nothing to do here
-            pass
-
-        elif iq.attributes['type'] == 'set':
-            child = iq.firstChildElement()
-            if child.attributes['xmlns'] == 'NS_PUBSUB':
-                #submit of wavelet delta or signer posts FIXME implement the later
-                self.onSubmitRequest(iq)
-        else:
-            #we ignore anything else for now, no error reporting
-            pass
+                self.service.xmlstream.send(message)
 
 
     def onHistoryRequest(self, request):
@@ -156,7 +97,7 @@ class WaveFederationHost(WaveFederationService):
 
         iq = domish.Element((None, 'iq'))
         iq.attributes['type'] = 'result'
-        iq.attributes['from'] = self.jabberId
+        iq.attributes['from'] = self.service.jabberId
         iq.attributes['to']   = request.attributes['from']
         iq.attributes['id']   = request.attributes['id']
 
@@ -164,7 +105,7 @@ class WaveFederationHost(WaveFederationService):
         items = pubsub.addElement((None, 'items'))
 
         print "history response: %s" % (iq.toXml())
-        #self.xmlstream.send(iq)
+        #self.service.xmlstream.send(iq)
 
 
     def onSubmitRequest(self, request):
@@ -180,12 +121,14 @@ class WaveFederationHost(WaveFederationService):
 
         iq = domish.Element((None, 'iq'))
         iq.attributes['type'] = 'result'
-        iq.attributes['from'] = self.jabberID
+        iq.attributes['from'] = self.service.jabberID
         iq.attributes['to']   = request.attributes['from']
         iq.attributes['id']   = request.attributes['id']
 
         pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
         publish = pubsub.addElement((None, 'pubslish'))
+        publish.attributes['node'] = 'wavelet'
+
         item = publish.addElement((None, 'item'))
 
         submitResponse = item.addElement((NS_WAVE_SERVER, 'submit-response'))
@@ -197,4 +140,20 @@ class WaveFederationHost(WaveFederationService):
         hashedVersion.attributes['version'] = 1
 
         print "submit response: %s" % (iq.toXml())
+
+
+    def onGetSignerRequest(self, request):
+        """
+
+        """
+        #TODO implement
+        pass
+
+
+    def onSetSignerRequest(self, request):
+        """
+
+        """
+        #TODO implement
+        pass
 

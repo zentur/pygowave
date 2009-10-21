@@ -5,8 +5,7 @@ from twisted.application import service, internet
 from twisted.words.protocols.jabber import component
 
 import settings
-from component.wavefederationhost import WaveFederationHost
-from component.wavefederationremote import WaveFederationRemote
+from component.wavefederationservice import WaveFederationService
 from component.logservice import LogService
 
 # includes for txamqp
@@ -30,11 +29,9 @@ sm = component.buildServiceManager(settings.JABBERID, settings.JABBER_PASSWORD, 
 LogService().setServiceParent(sm)
 
 # set up our Service
-host = WaveFederationHost()
-host.setServiceParent(sm)
+fed = WaveFederationService()
+fed.setServiceParent(sm)
 
-remote = WaveFederationRemote()
-remote.setServiceParent(sm)
 
 sm.setServiceParent(application)
 
@@ -42,14 +39,14 @@ def error(err):
     print err
 
 class AMQPConnector():
-    def __init__(self, host, port, vhost, username, password, spec, fedhost):
+    def __init__(self, host, port, vhost, username, password, spec, fed):
         self.hostname = host
         self.port = port
         self.vhost = vhost
         self.username = username
         self.password = password
-        self.spec = spec
-        self.fedhost = fedhost
+        self.spec = txamqp.spec.load(spec)
+        self.fed = fed
 
 #    @inlineCallbacks
     def connect(self, application):
@@ -57,7 +54,7 @@ class AMQPConnector():
         onConn = Deferred()
         onConn.addCallback(self.gotAMQPConnection)
         onConn.addErrback(error)
-        f = protocol._InstanceFactory(reactor, AMQClient(delegate, self.vhost, txamqp.spec.load(spec)), onConn)
+        f = protocol._InstanceFactory(reactor, AMQClient(delegate, self.vhost, self.spec), onConn)
 
         internet.TCPClient(self.hostname, self.port, f).setServiceParent(application)
         
@@ -82,9 +79,7 @@ class AMQPConnector():
 
         while True:
             msg = yield queue.get()
-            yield self.fedhost.processAMQPMessage(msg, chan)
-            if msg.content.body == "STOP":
-                break
+            yield self.fed.processAMQPMessage(msg, chan)
 
         yield chan.basic_cancel("testtag")
         yield chan.channel_close()
@@ -99,7 +94,7 @@ username = 'pygowave_xmpp'
 password = 'pygowave_xmpp'
 spec = 'amqp0-8.xml'
 
-con = AMQPConnector(hostname, port, vhost, username, password, spec, host)
+con = AMQPConnector(hostname, port, vhost, username, password, spec, fed)
 con.connect(application)
 
 

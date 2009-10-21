@@ -28,11 +28,11 @@ from django.utils import simplejson
 
 import common_pb2
 from protobuf import convOpToPb, convPbToOp
-from wavefederationservice import WaveFederationService, NS_XMPP_RECEIPTS, NS_DISCO_INFO
-from wavefederationservice import NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
+from pygowave_server.models import Wavelet
+from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
 
-class WaveFederationRemote(WaveFederationService):
+class WaveFederationRemote(object):
     """
     PyGoWave XMPP component service using twisted words.
 
@@ -46,8 +46,11 @@ class WaveFederationRemote(WaveFederationService):
 
     """
 
+    def __init__(self, service):
+        self.service = service
 
-    def onMessage(self, msg):
+
+    def onUpdateMessage(self, msg):
         """
         Act on the message stanza that has just been received.
 
@@ -55,90 +58,69 @@ class WaveFederationRemote(WaveFederationService):
 
         """
 
-
-        for el in msg.elements():
-            if el.name == 'request':
-                for wavelet_update in xpath.XPathQuery('/message/event/items/item/wavelet-update').queryForNodes(msg):
+        for wavelet_update in xpath.XPathQuery('/message/event/items/item/wavelet-update').queryForNodes(msg):
                     waveletName = wavelet_update.attributes['wavelet-name']
 
-                for applied_delta in xpath.XPathQuery('/message/event/items/item/wavelet-update/applied-delta').queryForNodes(msg):
-                    content = str(applied_delta) #holy api failure
-                    op = convPbToOp(base64.b64decode(content))
-                    print "Received operation: %s, for wavelet: %s" %(op, waveletName)
+        for applied_delta in xpath.XPathQuery('/message/event/items/item/wavelet-update/applied-delta').queryForNodes(msg):
+            content = str(applied_delta) #holy api failure
+            op = convPbToOp(base64.b64decode(content))
+            print "Received operation: %s, for wavelet: %s" %(op, waveletName)
 
 
-                reply = domish.Element((None, 'message'))
-                reply.attributes['id'] = msg.attributes['id']
-                reply.attributes['to'] = msg.attributes['from']
-                reply.attributes['from'] = self.jabberId
-                reply.addElement(('urn:xmpp:receipts', 'received'))
+        reply = domish.Element((None, 'message'))
+        reply.attributes['id'] = msg.attributes['id']
+        reply.attributes['to'] = msg.attributes['from']
+        reply.attributes['from'] = self.service.jabberId
+        reply.addElement(('urn:xmpp:receipts', 'received'))
 
-                self.xmlstream.send(reply)
+        self.service.xmlstream.send(reply)
 
         
-    def onIq(self, iq):
-        """
-        Act on the iq stanza that has just been received.
-
-        @param {Element} iq
-
-        """
-
-        if iq.attributes['type'] == 'get':
-            child = iq.firstChildElement()
-            if child.attributes['xmlns'] == 'NS_DISCO_INFO':
-                #service discovery
-                self.sendDiscoInfoResponse(iq)
-            if child.attributes['xmlns'] == 'NS_DISCO_ITEMS':
-                #service discovery
-                #TODO implement
-                pass
-        elif iq.attributes['type'] == 'result':
-            child = iq.firstChildElement()
-            if child.attributes['xmlns'] == 'NS_DISCO_INFO':
-                #service discovery
-                self.sendDiscoInfoResponse(iq)
-            if child.attributes['xmlns'] == 'NS_DISCO_ITEMS':
-                #service discovery
-                #TODO implement
-                pass
-        else:
-            #ignore everything else
-            pass
-
-
     def sendDiscoInfoResponse(self, iq):
         """
 
         """
 
-        iq = domish.Element((None, 'iq'))
-        iq.attributes['type'] = 'result'
-        iq.attributes['from'] = self.jabberId
-        iq.attributes['to']   = iq.attributes['from']
-        iq.attributes['id']   = iq.attributes['id']
+        reply = domish.Element((None, 'iq'))
+        reply.attributes['type'] = 'result'
+        reply.attributes['from'] = self.service.jabberId
+        reply.attributes['to']   = iq.attributes['from']
+        reply.attributes['id']   = iq.attributes['id']
 
-        query = iq.addElement((NS_DISCO_INFO, 'query'))
+        query = reply.addElement((NS_DISCO_INFO, 'query'))
 
         identity = query.addElement('identity')
         identity.attributes['name']     = 'PyGoWave'
         identity.attributes['category'] = 'collaboration'
         identity.attributes['type']     = 'pygowave'
 
-        for key in self.features.keys():
+        for key in self.service.features.keys():
             feature = query.addElement('feature')
             feature.attributes['var'] = key        
 
-        self.xmlstream.send(iq)
+        self.service.xmlstream.send(reply)
 
 
-    def submitRequest(self, waveletName):
+    def sendSubmitRequest(self, wavelet, data):
         """
         sends a submit request to the remote federation host
         called when a not locally hosted wave is changed by local participant
 
-        @param {String} waveletName
+        @param {Wavelet} wavelet
+        @param {String} data
+
         """
+
         #TODO: implement
-        print "Submit request for wavelet %s" % (waveletName)
+        print "Submit request for wavelet %s" % (wavelet)
         
+
+    def sendHistoryRequest(self):
+        """
+        Request the history of a wavelet from the wavelet's hosting server
+
+        """
+
+        #TODO: implement
+        pass
+
