@@ -101,6 +101,38 @@ class WaveFederationRemote(object):
         self.service.xmlstream.send(reply)
 
 
+    def onDiscoInfoResponse(self, iq):
+        """
+
+        """
+
+        pass
+
+
+    def sendDiscoItemsResponse(self, iq):
+        """
+
+        """
+
+        reply = domish.Element((None, 'iq'))
+        reply.attributes['type'] = 'result'
+        reply.attributes['from'] = self.service.jabberId
+        reply.attributes['to']   = iq.attributes['from']
+        reply.attributes['id']   = iq.attributes['id']
+
+        query = reply.addElement((NS_DISCO_ITEMS, 'query'))
+
+        self.service.xmlstream.send(reply)
+
+
+    def onDiscoItemsResponse(self, iq):
+        """
+
+        """
+
+        pass
+
+
     def sendSubmitRequest(self, wavelet, data):
         """
         sends a submit request to the remote federation host
@@ -111,16 +143,69 @@ class WaveFederationRemote(object):
 
         """
 
-        #TODO: implement
-        print "Submit request for wavelet %s" % (wavelet)
-        
+        hoster = wavelet.wavelet_name().split('/')[0]
 
-    def sendHistoryRequest(self):
+        iq = domish.Element((None, 'iq'))
+        iq.attributes['type'] = 'set'
+        iq.attributes['from'] = self.service.jabberId
+        iq.attributes['to']   = hoster
+        iq.addUniqueId()
+
+        pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
+
+        publish = pubsub.addElement((None, 'publish'))
+        publish.attributes['node'] = 'wavelet'
+
+        item = publish.addElement((None, 'item'))
+
+        submit_request = item.addElement((NS_WAVE_SERVER, 'submit-request'))
+
+        delta = submit_request.addElement((None, 'delta'))
+        delta.attributes['wavelet-name'] = wavelet.wavelet_name()
+        delta.addRawXml('<![CDATA[%s]]>' % (data))
+
+        print "Submit request for wavelet %s: %s" % (wavelet, iq.toXml())
+
+        self.service.xmlstream.send(iq)
+
+
+    def sendHistoryRequest(self, wavelet, start_version, start_version_hash, 
+                           end_version, end_version_hash, response_length_limit=None):
         """
         Request the history of a wavelet from the wavelet's hosting server
 
-        """
+        @param {Wavelet} wavelet Wavelet the history is requested for
+        @param {int} start_version Version the history should start at (including)
+        @param {String} start_version_hash The version hash for the start version
+        @param {int} end_version Version the history request should end at (excluding)
+        @param {int} end_version_hash The version hash for the end version
+        @param {int} response_length_limit Number of characters the history response's xml should have at max
 
-        #TODO: implement
-        pass
+        """
+        
+        hoster = wavelet.wavelet_name().split('/')[0]
+
+        iq = domish.Element((None, 'iq'))
+        iq.attributes['type'] = 'get'
+        iq.attributes['from'] = self.service.jabberId
+        iq.attributes['to']   = hoster
+        iq.addUniqueId()
+
+        pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
+
+        items = publish.addElement((None, 'items'))
+        items.attributes['node'] = 'wavelet'
+
+        delta_history = items.addElement((NS_WAVE_SERVER, 'delta-history'))
+        delta_history.attributes['start-version'] = start_version
+        delta_history.attributes['start-version-hash'] = start_version_hash
+        delta_history.attributes['end-version'] = end_version
+        delta_history.attributes['end-version-hash'] = end_version_hash
+        delta_history.attributes['wavelet-name'] = wavelet.wavelet_name()
+        if response_length_limit:
+            delta_history.attributes['response-length-limit'] = response_length_limit
+
+        print "History request for wavelet %s: %s" % (wavelet, iq.toXml())
+
+        self.service.xmlstream.send(iq)
 

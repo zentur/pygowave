@@ -56,7 +56,8 @@ class WaveFederationService(component.Service):
 
     def __init__(self):
         self.features = { NS_XMPP_RECEIPTS: None,
-                          NS_DISCO_INFO: None
+                          NS_DISCO_INFO: None,
+                          NS_WAVE_SERVER: None,
         }
 
     def componentConnected(self, xmlstream):
@@ -161,8 +162,7 @@ class WaveFederationService(component.Service):
                     self.remote.sendDiscoInfoResponse(iq)
                 elif el.uri == NS_DISCO_ITEMS:
                     #service discovery
-                    #TODO implement
-                    print 'WARNING: known, but yet unhandled iq'
+                    self.remote.sendDiscoItemsResponse(iq)
                 elif el.uri == NS_PUBSUB:
                     for items in el.elements():
                         if items.attributes['node'] == 'wavelet':
@@ -180,11 +180,10 @@ class WaveFederationService(component.Service):
             for el in iq.elements():
                 if el.uri == NS_DISCO_INFO:
                     #service discovery
-                    self.remote.sendDiscoInfoResponse(iq)
+                    self.remote.onDiscoInfoResponse(iq)
                 elif el.uri == NS_DISCO_ITEMS:
                     #service discovery
-                    #TODO implement
-                    print 'WARNING: known, but yet unhandled iq'
+                    self.remote.onDiscoItemsResponse(iq)
                 else:
                     print "Unknown IQ:", iq
 
