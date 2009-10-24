@@ -147,13 +147,30 @@ class WaveFederationHost(object):
 
         """
         #TODO implement
-        pass
+        print "Received signer Get request"
 
 
     def onSetSignerRequest(self, request):
         """
 
         """
-        #TODO implement
-        pass
+        #TODO we ack the Post request but don't do anything with it yet
+        print "Received signer Set request"
+
+        reply = domish.Element((None, 'iq'))
+        #NOTE: the spec's example says type=set, which is wrong imho
+        reply.attributes['type'] = 'result'
+        reply.attributes['from'] = self.service.jabberId
+        reply.attributes['to']   = request.attributes['from']
+        reply.attributes['id']   = request.attributes['id']
+
+        pubsub = reply.addElement((NS_PUBSUB, 'pubsub'))
+        publish = pubsub.addElement((None, 'publish'))
+
+        item = publish.addElement((None, 'item'))
+        item.attributes['node'] = 'signer'
+
+        signature_response = item.addElement((NS_WAVE_SERVER, 'signature-response'))
+
+        self.service.xmlstream.send(reply)
 
