@@ -239,11 +239,14 @@ class Wavelet(models.Model):
 			wave_domain = self.wave.domain
 			delim = '$'
 
+		#Strip the wave id and "!" from the wavelet id
+		waveletId = self.id.split('!')[1]
+
 		wavelet_name = '%s/%s%s%s/%s' % (wavelet_domain,
                                          self.wave.domain ,
 		                                 delim,
 		                                 self.wave.id,
-		                                 self.id)
+		                                 waveletId)
 		return wavelet_name
 
 	def serialize(self):
