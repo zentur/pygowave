@@ -1,4 +1,3 @@
-# -*- coding: utf8 -*-
 """
 
  PyGoWave Server - The Python Google Wave Server
@@ -27,7 +26,6 @@ from twisted.words.xish import domish, xpath
 from django.utils import simplejson
 
 import common_pb2
-from protobuf import convOpToPb, convPbToOp
 from pygowave_server.models import Wavelet
 from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 

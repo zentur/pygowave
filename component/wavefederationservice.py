@@ -1,4 +1,3 @@
-# -*- coding: utf8 -*-
 """
 
  PyGoWave Server - The Python Google Wave Server
@@ -40,7 +39,6 @@ from twisted.words.xish import domish, xpath
 from django.utils import simplejson
 
 #import common_pb2
-from protobuf import convOpToPb, convPbToOp
 from pygowave_server.models import Wavelet
 
 from wavefederationremote import WaveFederationRemote
@@ -100,14 +98,14 @@ class WaveFederationService(component.Service):
 
         """
 
-        print 'WaveFederationRemote received: ' + msg.content.body + ' from channel #' + str(chan.id)
+        print 'WaveFederationService received: ' + msg.content.body + ' from channel #' + str(chan.id)
 
         #FIXME How to get the routing key the right way?
         rkey = msg[4]
         participant_conn_key, wavelet_id, message_category = rkey.split(".")
         body = simplejson.loads(msg.content.body)
 
-        data = base64.b64encode(convOpToPb(msg.content.body))
+        data = base64.b64encode(msg.content.body)
 
         if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN':
             print "ignoring message"

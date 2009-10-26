@@ -1,4 +1,3 @@
-# -*- coding: utf8 -*-
 """
 
  PyGoWave Server - The Python Google Wave Server
@@ -21,14 +20,14 @@
 
 """
 import base64
+import datetime
 
 from twisted.words.xish import domish, xpath
 
 from django.utils import simplejson
 
 import common_pb2
-from protobuf import convOpToPb, convPbToOp
-from pygowave_server.models import Wavelet
+from pygowave_server.models import Wave, Wavelet, Participant
 from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
 
@@ -41,8 +40,6 @@ class WaveFederationRemote(object):
     * It receives new wavelet operations pushed to it from the wave providers that host the wavelets.
     * It requests old wavelet operations from the hosting wave providers.
     * It submits wavelet operations to the hosting wave providers.
-
-    For now, we simply skip the whole protocol buffer part and send data in pygowave specific JSON
 
     """
 
@@ -59,13 +56,57 @@ class WaveFederationRemote(object):
         """
 
         for wavelet_update in xpath.XPathQuery('/message/event/items/item/wavelet-update').queryForNodes(msg):
-                    waveletName = wavelet_update.attributes['wavelet-name']
+                    wavelet_name = wavelet_update.attributes['wavelet-name']
 
         for applied_delta in xpath.XPathQuery('/message/event/items/item/wavelet-update/applied-delta').queryForNodes(msg):
             content = str(applied_delta) #holy api failure
-            op = convPbToOp(base64.b64decode(content))
-            print "Received operation: %s, for wavelet: %s" %(op, waveletName)
+            
+        applied_wavelet_delta = common_pb2.ProtocolAppliedWaveletDelta()
+        applied_wavelet_delta.ParseFromString(base64.b64decode(content))
+        #this would most likely be the place to do some signature checking, but we skip this for now
 
+
+        delta = common_pb2.ProtocolWaveletDelta()
+        delta.ParseFromString(applied_wavelet_delta.signed_original_delta.delta)
+
+        print delta
+        #wave://fedone.ferrum-et-magica.de/w+nDwroLCBtvJB/conv+root
+        #now where does that 'wave://' suddenly come from?
+        
+        waveletDomain, waveId, waveletId = wavelet_name.replace('wave://','').split('/')
+
+        if '$' in waveId:
+            waveDomain, waveId = waveId.split('$')
+        else:
+            waveDomain = waveletDomain
+
+        print waveDomain, waveId, waveletDomain, waveletId
+        try:
+            wave = Wave.objects.get(id=waveId)
+            print "Wave with ID %s already exists" % (waveId)
+        except:
+            wave = Wave(id=waveId, domain=waveDomain)
+            wave.save()
+
+        try:
+            #FIXME: get a real user here
+            creator = Participant.objects.get(id='murk@fedone.ferrum-et-magica.de')
+        except:
+            creator = Participant(id='murk@fedone.ferrum-et-magica.de')
+            creator.last_contact = datetime.datetime.now()
+            creator.save()
+
+        _id = waveId + '!' + waveletId
+        try:
+            wavelet = Wavelet.objects.get(id=_id)
+        except:
+            wavelet = Wavelet(id=_id, domain=waveletDomain)
+            wavelet.creator=creator
+            wavelet.wave=wave
+            wavelet.participants.add(creator)
+            wavelet.version=0
+            wavelet.is_root = True
+            wavelet.save()
 
         reply = domish.Element((None, 'message'))
         reply.attributes['id'] = msg.attributes['id']
