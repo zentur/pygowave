@@ -55,6 +55,11 @@ class WaveFederationRemote(object):
 
         """
 
+        if msg.attributes['type'] == 'error':
+            #TODO Better error handling
+            print "Error received"
+            return
+
         for wavelet_update in xpath.XPathQuery('/message/event/items/item/wavelet-update').queryForNodes(msg):
                     wavelet_name = wavelet_update.attributes['wavelet-name']
 

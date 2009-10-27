@@ -38,7 +38,7 @@ from twisted.words.xish import domish, xpath
 
 from django.utils import simplejson
 
-#import common_pb2
+import common_pb2
 from pygowave_server.models import Wavelet
 
 from wavefederationremote import WaveFederationRemote
@@ -68,7 +68,7 @@ class WaveFederationService(component.Service):
         """
 
         self.jabberId = xmlstream.authenticator.otherHost
-        self.xmlstream = xmlstream # set the xmlstream so we can reuse it
+        self.xmlstream = xmlstream
 
         self.remote = WaveFederationRemote(self)
         self.host = WaveFederationHost(self)
@@ -88,6 +88,56 @@ class WaveFederationService(component.Service):
         pass
 
 
+    def getWaveletDelta(self, data):
+        """
+        Return an instance of ProtocolWaveletDelta
+        """
+
+        version = data['property']['version']
+        operations = data ['property']['operations']
+
+        
+
+        delta = common_pb2.ProtocolWaveletDelta()
+        delta.hashed_version.version = version
+        delta.hashed_version.history_hash = 'some history hash'
+        delta.author = 'someone@somewhere.com'
+
+        for item in operations:
+            if item['type'] == 'DOCUMENT_INSERT':
+                #create a new operation with two components
+                #comp one skips the characters, comp two inserts a string
+                #at least, thats how i understand it ;)
+                op = delta.operation.add()
+                op.mutate_document.document_id = item['blipId']
+
+                comp = op.mutate_document.document_operation.component.add()
+                comp.retain_item_count = item['index']
+
+                comp = op.mutate_document.document_operation.component.add()
+                comp.characters = item['property']
+
+            else:
+                op = delta.operation.add()
+                op.no_op = True
+
+        return delta
+
+    def getAppliedWaveletDelta(self, delta):
+        app_delta = common_pb2.ProtocolAppliedWaveletDelta()
+        app_delta.signed_original_delta.delta = delta.SerializeToString()
+
+        sig = app_delta.signed_original_delta.signature.add()
+        sig.signature_bytes = 'some signature bytes'
+        sig.signer_id = 'some signer id'
+        sig.signature_algorithm = common_pb2.ProtocolSignature.SHA1_RSA
+
+        #HashedVersion is optional, so leave it for now
+        app_delta.operations_applied = 0
+        app_delta.application_timestamp = 123456789
+
+        return app_delta
+
     def processAMQPMessage(self, msg, chan):
         """
         handle messages received from our local wave provider
@@ -105,22 +155,23 @@ class WaveFederationService(component.Service):
         participant_conn_key, wavelet_id, message_category = rkey.split(".")
         body = simplejson.loads(msg.content.body)
 
-        data = base64.b64encode(msg.content.body)
-
         if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN':
             print "ignoring message"
             return
 
-        if not data:
-            print "data not set - skipping"
-            return
+        delta = self.getWaveletDelta(body)
+        print delta
+        print "***"
+        app_delta = self.getAppliedWaveletDelta(delta)
+        print app_delta
+
 
         wavelet = Wavelet.objects.get(id=wavelet_id)
         #check if wavelet is hosted locally
         if not wavelet.wavelet_name().startswith(self.jabberId):
             self.remote.sendSubmitRequest(wavelet, data)
         else:
-            self.host.sendUpdate(wavelet, data)
+            self.host.sendUpdate(wavelet, base64.b64encode(app_delta.SerializeToString()))
 
 
     def onMessage(self, msg):
@@ -201,5 +252,6 @@ class WaveFederationService(component.Service):
                     print "Unknown IQ:", iq
         else:
             print "Unknown IQ:", iq
+
 
 

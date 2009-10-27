@@ -40,8 +40,6 @@ class WaveFederationHost(object):
     * It satisfies requests for old wavelet operations.
     * It processes wavelet operations submission requests.
 
-    For now, we simply skip the whole protocol buffer part and send data in pygowave specific JSON
-
     """
 
     #TODO Implement queueing of messages in case remote server is not online
