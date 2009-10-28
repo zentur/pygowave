@@ -155,7 +155,7 @@ class WaveFederationService(component.Service):
         participant_conn_key, wavelet_id, message_category = rkey.split(".")
         body = simplejson.loads(msg.content.body)
 
-        if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN':
+        if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN' or body['type'] == 'PING':
             print "ignoring message"
             return
 
