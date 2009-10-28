@@ -39,7 +39,7 @@ from twisted.words.xish import domish, xpath
 from django.utils import simplejson
 
 import common_pb2
-from pygowave_server.models import Wavelet
+from pygowave_server.models import Wavelet, ParticipantConn
 
 from wavefederationremote import WaveFederationRemote
 from wavefederationhost import WaveFederationHost
@@ -87,36 +87,47 @@ class WaveFederationService(component.Service):
 
         pass
 
+    def addDocumentInsertOperation(self, op, document_id, item_count, characters):
+        """
+        create a new operation with two components
+        comp one skips the characters, comp two inserts a string
+        at least, thats how i understand it ;)
 
-    def getWaveletDelta(self, data):
+        """
+
+        op.mutate_document.document_id = document_id
+
+        comp = op.mutate_document.document_operation.component.add()
+        comp.retain_item_count = item_count
+
+        comp = op.mutate_document.document_operation.component.add()
+        comp.characters = characters
+
+
+
+    def getWaveletDelta(self, data, author):
         """
         Return an instance of ProtocolWaveletDelta
+
+        @param {String} data operation in pygowave specific serialized JSON format
+        @param {String} author wave address of the author of that delta
+
         """
+
+        #TODO: support for address_path
 
         version = data['property']['version']
         operations = data ['property']['operations']
 
-        
-
         delta = common_pb2.ProtocolWaveletDelta()
         delta.hashed_version.version = version
         delta.hashed_version.history_hash = 'some history hash'
-        delta.author = 'someone@somewhere.com'
+        delta.author = author
 
         for item in operations:
             if item['type'] == 'DOCUMENT_INSERT':
-                #create a new operation with two components
-                #comp one skips the characters, comp two inserts a string
-                #at least, thats how i understand it ;)
                 op = delta.operation.add()
-                op.mutate_document.document_id = item['blipId']
-
-                comp = op.mutate_document.document_operation.component.add()
-                comp.retain_item_count = item['index']
-
-                comp = op.mutate_document.document_operation.component.add()
-                comp.characters = item['property']
-
+                self.addDocumentInsertOperation(op, item['blipId'], item['index'], item['property'])
             else:
                 op = delta.operation.add()
                 op.no_op = True
@@ -159,7 +170,14 @@ class WaveFederationService(component.Service):
             print "ignoring message"
             return
 
-        delta = self.getWaveletDelta(body)
+        print participant_conn_key
+        try:
+	        pconn = ParticipantConn.objects.get(tx_key=participant_conn_key)
+        except:
+            print "pconn not found"
+            return
+
+        delta = self.getWaveletDelta(body, pconn.participant.id)
         print delta
         print "***"
         app_delta = self.getAppliedWaveletDelta(delta)

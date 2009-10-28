@@ -4,9 +4,13 @@ import sys
 from twisted.application import service, internet
 from twisted.words.protocols.jabber import component
 
-import settings
-from component.wavefederationservice import WaveFederationService
-from component.logservice import LogService
+if not os.environ.has_key("DJANGO_SETTINGS_MODULE"):
+	os.environ["DJANGO_SETTINGS_MODULE"] = "settings"
+
+from django.conf import settings
+
+from pygowave_xmpp.wavefederationservice import WaveFederationService
+from pygowave_xmpp.logservice import LogService
 
 # includes for txamqp
 from twisted.internet import reactor, protocol
