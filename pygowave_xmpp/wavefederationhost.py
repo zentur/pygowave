@@ -25,8 +25,8 @@ from twisted.words.xish import domish, xpath
 
 from django.utils import simplejson
 
-import common_pb2
-from pygowave_server.models import Wavelet
+import waveprotocolbuffer
+from pygowave_server.models import Wavelet, Delta
 from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
 
@@ -88,8 +88,28 @@ class WaveFederationHost(object):
 
         @param {Element} request the history request received
 
+
         """
-        #TODO fetch history and pack it
+        #fetch history and pack it
+
+        for delta_history in xpath.XPathQuery('/iq/pubsub/items/delta-history').queryForNodes(request):
+            wavelet_name = delta_history.attributes['wavelet-name']
+            start_version = int(delta_history.attributes['start-version'])
+            start_version_hash = delta_history.attributes['start-version-hash']
+            end_version = int(delta_history.attributes['end-version'])
+            end_version_hash = delta_history.attributes['end-version-hash']
+
+        waveletDomain, waveId, waveletId = wavelet_name.replace('wave://','').split('/')
+
+        if '$' in waveId:
+            waveDomain, waveId = waveId.split('$')
+        else:
+            waveDomain = waveletDomain
+
+        print "fetch history for:", waveDomain, waveId, waveletDomain, waveletId, start_version, start_version_hash, end_version, end_version_hash
+
+        _id = waveId + '!' + waveletId
+        wavelet = Wavelet.objects.get(pk=_id)
 
         iq = domish.Element((None, 'iq'))
         iq.attributes['type'] = 'result'
@@ -100,8 +120,26 @@ class WaveFederationHost(object):
         pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
         items = pubsub.addElement((None, 'items'))
 
-        print "history response: %s" % (iq.toXml())
-        #self.service.xmlstream.send(iq)
+
+        for i in range(start_version, end_version):
+            #TODO: Our versions start with number 1, so we add 1                
+            delta = Delta.objects.filter(wavelet=wavelet).get(version=i+1)
+
+            #FIXME: naming conventions *sigh*
+            #FIXME: delta in database does not contain author
+            #FIXME: again problem that our version start with 1, substract 1
+            d = waveprotocolbuffer.getWaveletDelta(delta.version-1, simplejson.loads(delta.operations), 
+                                                   waveprotocolbuffer.getHistoryHash(i, wavelet_name), 'murk@ferrum-et-magica.de')
+            app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d)
+
+            data = base64.b64encode(app_delta.SerializeToString())
+
+            item = items.addElement((None, 'item'))
+            
+            applied_delta = item.addElement((None, 'applied-delta'))
+            applied_delta.addRawXml('<![CDATA[%s]]>' % (data))
+
+        self.service.xmlstream.send(iq)
 
 
     def onSubmitRequest(self, request):

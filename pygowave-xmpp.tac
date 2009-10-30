@@ -27,7 +27,8 @@ import txamqp.spec
 application = service.Application("pygowave-federation")
 
 # set up Jabber Component
-sm = component.buildServiceManager(settings.JABBERID, settings.JABBER_PASSWORD, ("tcp:127.0.0.1:5275" ))
+sm = component.buildServiceManager(settings.XMPP_ID, settings.XMPP_PASSWORD,
+                                   ("tcp:%s:%s" % (settings.XMPP_HOST, settings.XMPP_PORT)))
 
 # Turn on verbose mode
 LogService().setServiceParent(sm)

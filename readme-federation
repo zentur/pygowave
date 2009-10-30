@@ -20,8 +20,10 @@ Setting up Federation support:
 
    In the settings.py file, add/edit the following lines to suit the values you chose above
 
-    JABBERID = "wave.YOUR-DOMAIN.TLD"
-    JABBER_PASSWORD = "SOMEPASSWORD"
+    XMPP_ID = "wave.YOUR-DOMAIN.TLD"
+    XMPP_PASSWORD = "SOMEPASSWORD"
+    XMPP_PORT = 5275
+    XMPP_HOST = "localhost"
 
 
 3. Run the component
@@ -36,6 +38,7 @@ ToDo list and other things
 
  - Finish protocol implementation
  - Read more options from the settings.py file
+ - Switch to the pygowave rpc code and remove dependency on txampq
  - Server Discovery to discover remote wave servers
  - Better integration of protocol buffers into the ORM
  - many more...

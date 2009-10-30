@@ -78,6 +78,7 @@ class WaveFederationRemote(object):
         #wave://fedone.ferrum-et-magica.de/w+nDwroLCBtvJB/conv+root
         #now where does that 'wave://' suddenly come from?
         
+        #TODO wrap this up in a function, we will need it several times
         waveletDomain, waveId, waveletId = wavelet_name.replace('wave://','').split('/')
 
         if '$' in waveId:
@@ -167,6 +168,13 @@ class WaveFederationRemote(object):
         reply.attributes['id']   = iq.attributes['id']
 
         query = reply.addElement((NS_DISCO_ITEMS, 'query'))
+
+        #NOTE: i am not sure if this is allowed, but it "fixes" my
+        #service discovery problem for the moment
+
+        item = query.addElement((None, 'item'))
+        item.attributes['jid'] = self.service.jabberId
+        item.attributes['name'] = 'PyGoWave'
 
         self.service.xmlstream.send(reply)
 
