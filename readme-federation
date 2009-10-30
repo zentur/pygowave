@@ -1,0 +1,42 @@
+Random things about federation.
+
+First: Federation support is not complete and basically does not work. However here is information about it
+
+Federation support is (like in google's fedone) implemented as an xmpp component (see XEP-0114), but
+since recent development makes pygowave more independent from other software, it might eventually bring
+it's own xmpp server. That however won't happen before version 2.
+
+Setting up Federation support:
+
+1. Configure your jabber server to accept the connection from the component.
+   If you have an ejabberd server like me, add the following lines to ejabberd.cfg:
+
+   {5275, ejabberd_service, [{host, "wave.YOUR-DOMAIN.TLD",
+                               [{password, "SOMEPASSWORD"}]}]},
+
+   Note: This makes it possible to run the component on a different server than your jabber server.
+
+2. Configure pygowave
+
+   In the settings.py file, add/edit the following lines to suit the values you chose above
+
+    JABBERID = "wave.YOUR-DOMAIN.TLD"
+    JABBER_PASSWORD = "SOMEPASSWORD"
+
+
+3. Run the component
+
+   Currently the federation part runs as a seperate process, this will change later.
+   To start the server and let it run in the foreground:
+
+    twistd -ny pygowave-xmpp.tac
+
+
+ToDo list and other things
+
+ - Finish protocol implementation
+ - Read more options from the settings.py file
+ - Server Discovery to discover remote wave servers
+ - Better integration of protocol buffers into the ORM
+ - many more...
+
