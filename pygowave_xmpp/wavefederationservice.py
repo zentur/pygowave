@@ -39,7 +39,7 @@ from twisted.words.xish import domish, xpath
 from django.utils import simplejson
 
 import waveprotocolbuffer
-from pygowave_server.models import Wavelet, ParticipantConn
+from pygowave_server.models import Wavelet, ParticipantConn, Delta
 
 from wavefederationremote import WaveFederationRemote
 from wavefederationhost import WaveFederationHost
@@ -102,13 +102,12 @@ class WaveFederationService(component.Service):
         participant_conn_key, wavelet_id, message_category = rkey.split(".")
         body = simplejson.loads(msg.content.body)
 
-        if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN' or body['type'] == 'PING':
+        if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN' or body['type'] == 'PING' or body['type'] == 'GADGET_LIST' or body['type'] == 'PARTICIPANT_SEARCH':
             print "ignoring message", body['type']
             return
 
         print 'WaveFederationService received: ' + msg.content.body + ' from channel #' + str(chan.id)
 
-        print participant_conn_key
         try:
 	        pconn = ParticipantConn.objects.get(tx_key=participant_conn_key)
         except:
@@ -116,13 +115,14 @@ class WaveFederationService(component.Service):
             return
 
         wavelet = Wavelet.objects.get(id=wavelet_id)
+        #delta = Delta.objects.filter(wavelet=wavelet).get(version=body['property']['version'])
 
+        #NOTE: version is the version the delta is applied to
         version = body['property']['version']
-        delta = waveprotocolbuffer.getWaveletDelta(version, body['property']['operations'],
-                                                   waveprotocolbuffer.getHistoryHash(version, wavelet.wavelet_name()), pconn.participant.id)
-        print delta
+        d = waveprotocolbuffer.getWaveletDelta2(version, body['property']['operations'], wavelet.wavelet_name(), pconn.participant.id)
+        print d
         print "***"
-        app_delta = waveprotocolbuffer.getAppliedWaveletDelta(delta)
+        app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d)
         print app_delta
 
         #check if wavelet is hosted locally

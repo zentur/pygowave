@@ -128,8 +128,7 @@ class WaveFederationHost(object):
             #FIXME: naming conventions *sigh*
             #FIXME: delta in database does not contain author
             #FIXME: again problem that our version start with 1, substract 1
-            d = waveprotocolbuffer.getWaveletDelta(delta.version-1, simplejson.loads(delta.operations), 
-                                                   waveprotocolbuffer.getHistoryHash(i, wavelet_name), 'murk@ferrum-et-magica.de')
+            d = waveprotocolbuffer.getWaveletDelta(delta, wavelet_name, 'murk@localhost')
             app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d)
 
             data = base64.b64encode(app_delta.SerializeToString())
