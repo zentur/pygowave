@@ -27,6 +27,9 @@ import common_pb2
 
 from pygowave_server.models import Delta, Wavelet
 
+#FIXME:
+#FIXME: This code is ugly and misleading, this will be fixed once it is working
+#FIXME:
 
 historyHashCache = {}
 
@@ -63,8 +66,16 @@ def getHistoryHash(version, wavelet_name):
 
     print "getHistoryHash: version:", version
 
-    #FIXME: a dummy author
+    #FIXME: a dummy author is used here, we need the author of each delta stored in the ORM
     author = 'murk@localhost'
+
+    #FIXME: the numbering of versions is misleading, as the version stored in the delta is
+    #the one the wavelet has AFTER applying, but history hashes work by using the version nummer
+    #the delta is applied TO!
+
+    #Specifies the length the calculated hash is truncated to (in bits)
+    #Spec doesn't tell about it, but fedone does it, so do we
+    hashSizeBits = 160 
 
     if version == 0:
         if wavelet_name.startswith('wave://'):
@@ -80,14 +91,8 @@ def getHistoryHash(version, wavelet_name):
         else:
             waveDomain = waveletDomain
 
-
-        #  = getHistoryHash(version - 1, wavelet_name)
-
-        prev = version #- 1
-
         wavelet = Wavelet.objects.get(pk=waveId+'!'+waveletId)
-        delta = Delta.objects.filter(wavelet=wavelet).get(version=prev)
-        print delta
+        delta = Delta.objects.filter(wavelet=wavelet).get(version=version)
 
         d = getWaveletDelta(delta, wavelet_name, author)
         print "delta for version:", prev, d
@@ -95,33 +100,32 @@ def getHistoryHash(version, wavelet_name):
         print "appliedDelta", app_delta
         prevHash = d.hashed_version.history_hash
 
-        hashSizeBits = 160 #google does it, so do we
-
         history_hash = hashlib.sha256()
         history_hash.update(prevHash + app_delta.SerializeToString())
 
         h = history_hash.digest()[0:hashSizeBits/8]
 
-        print "calculated hash for wavelet %s, version %s:" % (wavelet_name, prev)
+        print "calculated hash for wavelet %s, version %s:" % (wavelet_name, version)
         historyHashCache[hashKey] = h
         print repr(h)
         return h
         
 
-def getWaveletDelta(_delta, wavelet_name, author):
+def getWaveletDelta(delta, author):
     """
-    Return an instance of ProtocolWaveletDelta
+    creates the delta from the models.Delta class
 
-    @param {int} version the version this delta is meant to be applied to
-    @param {String} operations in pygowave specific serialized JSON format
-    @param {String} history_hash for the version this delta is applied to
-    @param {String} author wave address of the author of that delta
+    @param {delta} Delta delta the ProtocolBuffer is created from
+    @param {author} a dummy author used to fill the author field in the protocol buffer
 
     """
-    version = _delta.version - 1
-    operations = simplejson.loads(_delta.operations)
+
+    version = delta.version - 1
+    operations = simplejson.loads(delta.operations)
+    wavelet_name = delta.wavelet.wavelet_name()
 
     return getWaveletDelta2(version, operations, wavelet_name, author)
+
 
 def getWaveletDelta2(version, operations, wavelet_name, author):
     """

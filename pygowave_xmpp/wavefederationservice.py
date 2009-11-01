@@ -117,18 +117,18 @@ class WaveFederationService(component.Service):
         wavelet = Wavelet.objects.get(id=wavelet_id)
         #delta = Delta.objects.filter(wavelet=wavelet).get(version=body['property']['version'])
 
-        #NOTE: version is the version the delta is applied to
-        version = body['property']['version']
-        d = waveprotocolbuffer.getWaveletDelta2(version, body['property']['operations'], wavelet.wavelet_name(), pconn.participant.id)
-        print d
-        print "***"
-        app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d)
-        print app_delta
-
         #check if wavelet is hosted locally
         if not wavelet.wavelet_name().startswith(self.jabberId):
             self.remote.sendSubmitRequest(wavelet, data)
         else:
+            #NOTE: version is the version the delta is applied to
+            version = body['property']['version']
+            d = waveprotocolbuffer.getWaveletDelta2(version, body['property']['operations'], wavelet.wavelet_name(), pconn.participant.id)
+            print d
+            print "***"
+            app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d)
+            print app_delta
+
             self.host.sendUpdate(wavelet, base64.b64encode(app_delta.SerializeToString()))
 
 
