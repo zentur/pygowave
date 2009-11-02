@@ -174,12 +174,79 @@ class WaveFederationHost(object):
         print "submit response: %s" % (iq.toXml())
 
 
+    def postSignature(self, target):
+        """
+        post the signature chain to the target wave server
+
+        @param {String} target the jid of the server to send the signatures to
+
+        """
+
+        certificates = ['some certificate']
+
+        iq = domish.Element((None, 'iq'))
+        iq.attributes['type'] = 'set'
+        iq.attributes['from'] = self.service.jabberId
+        iq.attributes['to'] = target
+        iq.addUniqueId()
+
+        pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
+
+        publish = pubsub.addElement((None, 'publish'))
+        publish.attributes['node'] = 'signer'
+
+        item = publish.addElement((None, 'item'))
+
+        signature = item.addElement((NS_WAVE_SERVER, 'signature'))
+        signature.attributes['domain'] = 'some domain'
+        signature.attributes['algorithm'] = 'SHA256'
+
+        for c in certificates:
+            certificate = signature.addElement((None, 'certificate'))
+            certificate.addRawXml('<![CDATA[%s]]>' % (base64.b64encode(c)) ) 
+
+        self.service.xmlstream.send(reply)
+
+
     def onGetSignerRequest(self, request):
         """
 
+        Respond to a get signer request
+
         """
-        #TODO implement
+
         print "Received signer Get request"
+        
+        #<iq type="get" id="1-1" from="wave.initech-corp.com" to="wave.acmewave.com">
+        #  <pubsub xmlns="http://jabber.org/protocol/pubsub">
+        #    <items node="signer">
+        #      <signer-request xmlns="http://waveprotocol.org/protocol/0.2/waveserver"
+        #        history-hash="somehash" version="1234"
+        #        wavelet-name="acmewave.com/initech-corp.com!a/b"/> </items>
+        #  </pubsub>
+        #</iq>
+
+        certificates = ['some certificate']
+
+        reply = domish.Element((None, 'iq'))
+        reply.attributes['type'] = 'result'
+        reply.attributes['from'] = self.service.jabberId
+        reply.attributes['to'] = request.attributes['from']
+        reply.attributes['id'] = request.attributes['id']
+
+        pubsub = reply.addElement((NS_PUBSUB, 'pubsub'))
+
+        items = pubsub.addElement((None, 'items'))
+
+        signature = items.addElement((NS_WAVE_SERVER, 'signature'))
+        signature.attributes['domain'] = 'some domain'
+        signature.attributes['algorithm'] = 'SHA256'
+
+        for c in certificates:
+            certificate = signature.addElement((None, 'certificate'))
+            certificate.addRawXml('<![CDATA[%s]]>' % (base64.b64encode(c)))
+
+        self.service.xmlstream.send(reply)
 
 
     def onSetSignerRequest(self, request):

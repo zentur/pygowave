@@ -94,8 +94,8 @@ def getHistoryHash(version, wavelet_name):
         wavelet = Wavelet.objects.get(pk=waveId+'!'+waveletId)
         delta = Delta.objects.filter(wavelet=wavelet).get(version=version)
 
-        d = getWaveletDelta(delta, wavelet_name, author)
-        print "delta for version:", prev, d
+        d = getWaveletDelta(delta, author)
+        print "delta for version:", version, d
         app_delta = getAppliedWaveletDelta(d)
         print "appliedDelta", app_delta
         prevHash = d.hashed_version.history_hash

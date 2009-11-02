@@ -115,6 +115,8 @@ class WaveFederationService(component.Service):
             return
 
         wavelet = Wavelet.objects.get(id=wavelet_id)
+        #Getting the delta from database would be nicer, but with the current implementation of our own
+        #amqp message processor it would result in a race condition
         #delta = Delta.objects.filter(wavelet=wavelet).get(version=body['property']['version'])
 
         #check if wavelet is hosted locally
