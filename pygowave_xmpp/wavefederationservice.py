@@ -39,8 +39,8 @@ from twisted.words.xish import domish, xpath
 from django.utils import simplejson
 
 import waveprotocolbuffer
+import crypto
 from pygowave_server.models import Wavelet, ParticipantConn, Delta
-
 from wavefederationremote import WaveFederationRemote
 from wavefederationhost import WaveFederationHost
 
@@ -52,11 +52,15 @@ class WaveFederationService(component.Service):
     """
 
 
-    def __init__(self):
+    def __init__(self, certificate_file, certificate_key_file):
         self.features = { NS_XMPP_RECEIPTS: None,
                           NS_DISCO_INFO: None,
                           NS_WAVE_SERVER: None,
         }
+
+        self.certificates = crypto.loadCertificate(certificate_file)
+        self.remoteHosts = {}
+
 
     def componentConnected(self, xmlstream):
         """
@@ -167,18 +171,14 @@ class WaveFederationService(component.Service):
         if iq.attributes['type'] == 'get':
             for el in iq.elements():
                 if el.uri == NS_DISCO_INFO:
-                    #service discovery
                     self.remote.sendDiscoInfoResponse(iq)
                 elif el.uri == NS_DISCO_ITEMS:
-                    #service discovery
                     self.remote.sendDiscoItemsResponse(iq)
                 elif el.uri == NS_PUBSUB:
                     for items in el.elements():
                         if items.attributes['node'] == 'wavelet':
-                            #history request 
                             self.host.onHistoryRequest(iq)
                         elif items.attributes['node'] == 'signer':
-                            #or signer request
                             self.host.onGetSignerRequest(iq)
                         else:
                             print "Unknown IQ:", iq
@@ -188,10 +188,8 @@ class WaveFederationService(component.Service):
         elif iq.attributes['type'] == 'result':
             for el in iq.elements():
                 if el.uri == NS_DISCO_INFO:
-                    #service discovery
                     self.remote.onDiscoInfoResponse(iq)
                 elif el.uri == NS_DISCO_ITEMS:
-                    #service discovery
                     self.remote.onDiscoItemsResponse(iq)
                 else:
                     print "Unknown IQ:", iq
@@ -201,10 +199,8 @@ class WaveFederationService(component.Service):
                 if el.uri == NS_PUBSUB:
                     for publish in el.elements():
                         if publish.attributes['node'] == 'wavelet':
-                            #submit of wavelet delta or signer posts FIXME implement the later
                             self.host.onSubmitRequest(iq)
                         elif publish.attributes['node'] == 'signer':
-                            #or signer request FIXME: implement
                             self.host.onSetSignerRequest(iq)
                         else:
                             print "Unknown IQ:", iq

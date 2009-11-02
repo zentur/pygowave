@@ -30,6 +30,22 @@ from pygowave_server.models import Wavelet, Delta
 from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
 
+class RemoteHost(object):
+    """
+    Object representing a remote host, used to
+    - implement a per-host resend queue
+    - storing received certificates
+    """
+
+    def __init__(self, domain):
+        self.domain = domain
+        self.certificates = []
+
+    def updateCertificates(self, certificates):
+        print "Updating certificates for host/domain:", self.domain
+        self.certificates = certificates
+
+
 class WaveFederationHost(object):
     """
     PyGoWave XMPP component service using twisted words.
@@ -182,8 +198,6 @@ class WaveFederationHost(object):
 
         """
 
-        certificates = ['some certificate']
-
         iq = domish.Element((None, 'iq'))
         iq.attributes['type'] = 'set'
         iq.attributes['from'] = self.service.jabberId
@@ -201,7 +215,7 @@ class WaveFederationHost(object):
         signature.attributes['domain'] = 'some domain'
         signature.attributes['algorithm'] = 'SHA256'
 
-        for c in certificates:
+        for c in self.service.certificates:
             certificate = signature.addElement((None, 'certificate'))
             certificate.addRawXml('<![CDATA[%s]]>' % (base64.b64encode(c)) ) 
 
@@ -226,8 +240,6 @@ class WaveFederationHost(object):
         #  </pubsub>
         #</iq>
 
-        certificates = ['some certificate']
-
         reply = domish.Element((None, 'iq'))
         reply.attributes['type'] = 'result'
         reply.attributes['from'] = self.service.jabberId
@@ -242,7 +254,7 @@ class WaveFederationHost(object):
         signature.attributes['domain'] = 'some domain'
         signature.attributes['algorithm'] = 'SHA256'
 
-        for c in certificates:
+        for c in self.service.certificates:
             certificate = signature.addElement((None, 'certificate'))
             certificate.addRawXml('<![CDATA[%s]]>' % (base64.b64encode(c)))
 
@@ -251,10 +263,28 @@ class WaveFederationHost(object):
 
     def onSetSignerRequest(self, request):
         """
+        Store the received certificate(s) in the poster's RemoteHost object and send reply
 
+        @param {Element} request the iq request received
         """
-        #TODO we ack the Post request but don't do anything with it yet
+
         print "Received signer Set request"
+
+        for signature in xpath.XPathQuery('/iq/pubsub/publish/item/signature').queryForNodes(request):
+            remote_domain = signature.attributes['domain']
+            algorithm = signature.attributes['algorithm']
+
+        if self.service.remoteHosts.has_key(remote_domain):
+            remote = self.service.remoteHosts[remote_domain]
+        else:
+            remote = RemoteHost(remote_domain)
+
+        certificates = []
+
+        for el in signature.elements():
+            certificates.append(str(el))
+
+        remote.updateCertificates(certificates)
 
         reply = domish.Element((None, 'iq'))
         #NOTE: the spec's example says type=set, which is wrong imho

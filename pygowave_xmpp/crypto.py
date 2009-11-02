@@ -20,3 +20,27 @@
 
 """
 
+signature = 'some signature'
+
+def getCertificateChain():
+    return certificates
+
+
+def loadCertificate(certfile):
+    """
+    Bah, can't believe python has no native support for this...
+    """
+
+    certificates = ['some certificate']
+
+    try:
+        f = open(certfile)
+        data = f.read()
+        f.close()
+    except IOError:
+        print "WARNING: Cannot load certificate file %s, signing disbabled." % (certfile)
+        return []
+
+    print "Data loaded from certfile:", data
+    
+    return certificates
