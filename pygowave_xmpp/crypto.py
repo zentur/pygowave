@@ -20,27 +20,66 @@
 
 """
 
-signature = 'some signature'
-
-def getCertificateChain():
-    return certificates
+import hmac
+import hashlib
 
 
-def loadCertificate(certfile):
+class Signer(object):
     """
-    Bah, can't believe python has no native support for this...
+    TODO
     """
 
-    certificates = ['some certificate']
 
-    try:
+    def __init__(self):
+        """
+        """
+
+        self.signingkey = 'some_signing_key'
+        self.certificates = ['some_certificate']
+        #TODO make algorithm configurable
+        self.algorithm = hashlib.sha1
+        pass
+
+
+    def sign(self, payload):
+        """
+        """
+
+        h = hmac.new(self.signingkey, payload, self.algorithm)
+        return h.digest()
+
+
+    def getSignature(self):
+        """
+        Return the signature for this signer
+
+        The signature is the base64 encode hash of the pki-path of this signers certificate chain
+        """
+
+        return 'some signature'
+
+
+    def getSignerId(self):
+        return 'some_signer_id'
+
+
+    def getCerfificateChain(self):
+        return self.certificates
+
+
+    def loadCertificates(self, certfile):
+        """
+        Bah, can't believe python has no native support for this...
+        """
+
+        certificates = ['some certificate']
+
         f = open(certfile)
         data = f.read()
         f.close()
-    except IOError:
-        print "WARNING: Cannot load certificate file %s, signing disbabled." % (certfile)
-        return []
 
-    print "Data loaded from certfile:", data
+        print "Data loaded from certfile:", data
     
-    return certificates
+        self.certificates = certificates
+
+

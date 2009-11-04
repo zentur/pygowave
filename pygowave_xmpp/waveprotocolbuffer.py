@@ -157,15 +157,22 @@ def getWaveletDelta2(version, operations, wavelet_name, author):
 
     return delta
 
-def getAppliedWaveletDelta(delta):
+def getAppliedWaveletDelta(delta, signer=None):
 
     app_delta = common_pb2.ProtocolAppliedWaveletDelta()
     app_delta.signed_original_delta.delta = delta.SerializeToString()
 
     sig = app_delta.signed_original_delta.signature.add()
-    sig.signature_bytes = 'some signature bytes'
-    sig.signer_id = 'some signer id'
-    sig.signature_algorithm = common_pb2.ProtocolSignature.SHA1_RSA
+
+#    if True:
+    if not signer:
+        sig.signature_bytes = 'some signature'
+        sig.signer_id = 'some_signer_id'
+        sig.signature_algorithm = common_pb2.ProtocolSignature.SHA1_RSA
+    else:
+        sig.signature_bytes = signer.getSignature()
+        sig.signer_id = signer.getSignerId()
+        sig.signature_algorithm = common_pb2.ProtocolSignature.SHA1_RSA
 
     #HashedVersion is optional, so leave it for now
     app_delta.operations_applied = len(delta.operation)

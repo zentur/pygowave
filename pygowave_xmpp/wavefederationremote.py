@@ -27,7 +27,7 @@ from twisted.words.xish import domish, xpath
 from django.utils import simplejson
 
 import common_pb2
-from pygowave_server.models import Wave, Wavelet, Participant
+from pygowave_server.models import Wave, Wavelet, Participant, Delta
 from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
 
 
@@ -71,12 +71,10 @@ class WaveFederationRemote(object):
         #this would most likely be the place to do some signature checking, but we skip this for now
 
 
-        delta = common_pb2.ProtocolWaveletDelta()
-        delta.ParseFromString(applied_wavelet_delta.signed_original_delta.delta)
+        deltaProtocolBuffer = common_pb2.ProtocolWaveletDelta()
+        deltaProtocolBuffer.ParseFromString(applied_wavelet_delta.signed_original_delta.delta)
 
-        print delta
-        #wave://fedone.ferrum-et-magica.de/w+nDwroLCBtvJB/conv+root
-        #now where does that 'wave://' suddenly come from?
+        print deltaProtocolBuffer
         
         #TODO wrap this up in a function, we will need it several times
         waveletDomain, waveId, waveletId = wavelet_name.replace('wave://','').split('/')

@@ -58,7 +58,8 @@ class WaveFederationService(component.Service):
                           NS_WAVE_SERVER: None,
         }
 
-        self.certificates = crypto.loadCertificate(certificate_file)
+        self.signer = crypto.Signer()
+        self.signer.loadCertificates(certificate_file)
         self.remoteHosts = {}
 
 
@@ -106,7 +107,7 @@ class WaveFederationService(component.Service):
         participant_conn_key, wavelet_id, message_category = rkey.split(".")
         body = simplejson.loads(msg.content.body)
 
-        if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN' or body['type'] == 'PING' or body['type'] == 'GADGET_LIST' or body['type'] == 'PARTICIPANT_SEARCH':
+        if body['type'] == 'PARTICIPANT_INFO' or body['type'] == 'WAVELET_OPEN' or body['type'] == 'PING' or body['type'] == 'GADGET_LIST' or body['type'] == 'PARTICIPANT_SEARCH' or body['type'] == 'WAVELET_REMOVE_SELF':
             print "ignoring message", body['type']
             return
 
@@ -132,7 +133,7 @@ class WaveFederationService(component.Service):
             d = waveprotocolbuffer.getWaveletDelta2(version, body['property']['operations'], wavelet.wavelet_name(), pconn.participant.id)
             print d
             print "***"
-            app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d)
+            app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d, self.signer)
             print app_delta
 
             self.host.sendUpdate(wavelet, base64.b64encode(app_delta.SerializeToString()))

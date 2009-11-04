@@ -106,7 +106,6 @@ class WaveFederationHost(object):
 
 
         """
-        #fetch history and pack it
 
         for delta_history in xpath.XPathQuery('/iq/pubsub/items/delta-history').queryForNodes(request):
             wavelet_name = delta_history.attributes['wavelet-name']
@@ -141,10 +140,9 @@ class WaveFederationHost(object):
             #TODO: Our versions start with number 1, so we add 1                
             delta = Delta.objects.filter(wavelet=wavelet).get(version=i+1)
 
-            #FIXME: naming conventions *sigh*
             #FIXME: delta in database does not contain author
-            d = waveprotocolbuffer.getWaveletDelta(delta, 'murk@localhost')
-            app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d)
+            deltaProtocolBuffer = waveprotocolbuffer.getWaveletDelta(delta, 'murk@localhost')
+            app_delta = waveprotocolbuffer.getAppliedWaveletDelta(deltaProtocolBuffer, self.service.signer)
 
             data = base64.b64encode(app_delta.SerializeToString())
 
@@ -215,7 +213,7 @@ class WaveFederationHost(object):
         signature.attributes['domain'] = 'some domain'
         signature.attributes['algorithm'] = 'SHA256'
 
-        for c in self.service.certificates:
+        for c in self.service.signer.getCertificates:
             certificate = signature.addElement((None, 'certificate'))
             certificate.addRawXml('<![CDATA[%s]]>' % (base64.b64encode(c)) ) 
 
