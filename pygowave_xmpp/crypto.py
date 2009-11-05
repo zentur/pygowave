@@ -22,6 +22,7 @@
 
 import hmac
 import hashlib
+import base64
 from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM, FILETYPE_ASN1
 
 
@@ -63,6 +64,14 @@ class Signer(object):
 
     def getSignerId(self):
         """
+        Return the signer id of this signer
+        """
+
+        return 'some_signer_id'
+
+
+    def _calculateSignerId(self):
+        """
         The signer id is the base64 encoded hash of the pki-path of this signer:
 
         The pki path is defined as a ASN1 encoded sequence of certificates, where the
@@ -79,9 +88,7 @@ class Signer(object):
         h.update(pkipath)
         signer_id = h.digest()
 
-        print "Pkipath:", pkipath, "Hash:", signer_id
-
-        return 'some_signer_id'
+        self.signer_id = base64.b64encode(signer_id)
 
 
     def getCerfificateChain(self):
@@ -95,6 +102,8 @@ class Signer(object):
         we may need to load more than one file but one's complex enough for testing ;)
 
         TEST: It looks like newlines and the ...BEGIN CERTIFICATE... stuff is ignored by pyopenssl, thanks ;)
+
+        after the certificates are loaded, we calculate the signer id
         """
 
         self.certificates = []
@@ -104,8 +113,8 @@ class Signer(object):
         f.close()
 
         certificate = load_certificate(FILETYPE_PEM, data)
-        print "Certifcate loaded:", certificate.get_serial_number()
     
         self.certificates.append(certificate)
 
+        self._calculateSignerId
 
