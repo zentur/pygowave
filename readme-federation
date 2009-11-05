@@ -1,3 +1,9 @@
+Dependencies:
+
+Apart from dependencies on twisted, you need:
+- txampq - which will hopefully be removed soon(tm)
+- pyopenssl
+
 Random things about federation.
 
 First: Federation support is not complete and basically does not work. However here is information about it

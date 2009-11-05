@@ -34,7 +34,7 @@ sm = component.buildServiceManager(settings.XMPP_ID, settings.XMPP_PASSWORD,
 LogService().setServiceParent(sm)
 
 # set up our Service
-fed = WaveFederationService()
+fed = WaveFederationService(settings.CERTIFICATE_FILE, settings.CERTIFICATE_KEY_FILE)
 fed.setServiceParent(sm)
 
 

@@ -22,11 +22,14 @@
 
 import hmac
 import hashlib
+from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM, FILETYPE_ASN1
 
 
 class Signer(object):
     """
     TODO
+
+    Certificates are stored as a list of pyopenssl's x509 objects
     """
 
 
@@ -53,33 +56,56 @@ class Signer(object):
         """
         Return the signature for this signer
 
-        The signature is the base64 encode hash of the pki-path of this signers certificate chain
         """
 
         return 'some signature'
 
 
     def getSignerId(self):
+        """
+        The signer id is the base64 encoded hash of the pki-path of this signer:
+
+        The pki path is defined as a ASN1 encoded sequence of certificates, where the
+        first certificate is the "nearest" (e.g. the one generated for this very server)
+        and the following are the rest of the certificate chain up to the CA's cert
+        """
+
+        pkipath = ''
+
+        for cert in self.certificates:
+            pkipath += dump_certificate(FILETYPE_ASN1, cert)
+
+        h = hashlib.sha1()
+        h.update(pkipath)
+        signer_id = h.digest()
+
+        print "Pkipath:", pkipath, "Hash:", signer_id
+
         return 'some_signer_id'
 
 
     def getCerfificateChain(self):
-        return self.certificates
+        #return self.certificates
+        return ['some_certificate']
 
 
     def loadCertificates(self, certfile):
         """
-        Bah, can't believe python has no native support for this...
+        We load the certificate from the file provided in PEM format,
+        we may need to load more than one file but one's complex enough for testing ;)
+
+        TEST: It looks like newlines and the ...BEGIN CERTIFICATE... stuff is ignored by pyopenssl, thanks ;)
         """
 
-        certificates = ['some certificate']
+        self.certificates = []
 
         f = open(certfile)
         data = f.read()
         f.close()
 
-        print "Data loaded from certfile:", data
+        certificate = load_certificate(FILETYPE_PEM, data)
+        print "Certifcate loaded:", certificate.get_serial_number()
     
-        self.certificates = certificates
+        self.certificates.append(certificate)
 
 
