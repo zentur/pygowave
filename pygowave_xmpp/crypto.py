@@ -34,11 +34,13 @@ class Signer(object):
     """
 
 
-    def __init__(self):
+    def __init__(self, certfile, keyfile):
         """
         """
 
-        self.signingkey = 'some_signing_key'
+        self.load_certificates(certfile)
+        self.load_keyfile(keyfile)
+
         self.certificates = ['some_certificate']
         #TODO make algorithm configurable
         self.algorithm = hashlib.sha1
@@ -47,22 +49,16 @@ class Signer(object):
 
     def sign(self, payload):
         """
+        Sign the payload with this signer's private key.
+
+        @param {payload} the data to be signed
         """
 
         h = hmac.new(self.signingkey, payload, self.algorithm)
         return h.digest()
 
 
-    def getSignature(self):
-        """
-        Return the signature for this signer
-
-        """
-
-        return 'some signature'
-
-
-    def getSignerId(self):
+    def get_signer_id(self):
         """
         Return the signer id of this signer
         """
@@ -70,7 +66,7 @@ class Signer(object):
         return 'some_signer_id'
 
 
-    def _calculateSignerId(self):
+    def _calculate_signer_id(self):
         """
         The signer id is the base64 encoded hash of the pki-path of this signer:
 
@@ -91,12 +87,12 @@ class Signer(object):
         self.signer_id = base64.b64encode(signer_id)
 
 
-    def getCerfificateChain(self):
+    def get_cerfificate_chain(self):
         #return self.certificates
         return ['some_certificate']
 
 
-    def loadCertificates(self, certfile):
+    def load_certificates(self, certfile):
         """
         We load the certificate from the file provided in PEM format,
         we may need to load more than one file but one's complex enough for testing ;)
@@ -116,5 +112,16 @@ class Signer(object):
     
         self.certificates.append(certificate)
 
-        self._calculateSignerId
+        self._calculate_signer_id()
+
+
+    def load_keyfile(self, keyfile):
+        """
+        """
+
+        f = open(keyfile)
+        data = f.read()
+        f.close()
+        
+        self.signingkey = 'some_signing_key'
 

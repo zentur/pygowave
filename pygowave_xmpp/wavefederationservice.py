@@ -58,8 +58,7 @@ class WaveFederationService(component.Service):
                           NS_WAVE_SERVER: None,
         }
 
-        self.signer = crypto.Signer()
-        self.signer.loadCertificates(certificate_file)
+        self.signer = crypto.Signer(certificate_file, certificate_key_file)
         self.remoteHosts = {}
 
 
@@ -130,7 +129,7 @@ class WaveFederationService(component.Service):
         else:
             #NOTE: version is the version the delta is applied to
             version = body['property']['version']
-            d = waveprotocolbuffer.getWaveletDelta2(version, body['property']['operations'], wavelet.wavelet_name(), pconn.participant.id)
+            d = waveprotocolbuffer.getWaveletDelta2(version, body['property']['operations'], wavelet.wavelet_name(), pconn.participant.id, self.signer)
             print d
             print "***"
             app_delta = waveprotocolbuffer.getAppliedWaveletDelta(d, self.signer)

@@ -9,32 +9,35 @@ import crypto
 class SignerTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.signer = crypto.Signer()
+        self.signer = crypto.Signer('cert.pem', 'cert.key')
 
-    def testLoadCertificates(self):
+    def test_load_certificates(self):
         """
         check that signer.certificates contains at least one element
         """
 
-        certfile = 'cert.pem'
-        self.signer.loadCertificates(certfile)
-        
         self.assert_(len(self.signer.certificates) > 0)
 
 
-    def testGetSignerId(self):
+    def test_get_signer_id(self):
         """
         """
 
-        certfile = 'cert.pem'
-        self.signer.loadCertificates(certfile)
+        self.assertEqual('some_signer_id', self.signer.get_signer_id())
 
-        self.assertEqual('some_signer_id', self.signer.getSignerId())
+
+    def test_sign(self):
+        """
+        """
+
+        self.assertEqual('\x86a\x82\xcfX\xec\xb2\xc2\xfa\xb1\x1c=\x99bb\xb6=\xf5\xd5\xfc', self.signer.sign('teststring'))
+
 
 def suite():
     suite = unittest.TestSuite()
-    suite.addTest(SignerTestCase('testLoadCertificates'))
-    suite.addTest(SignerTestCase('testGetSignerId'))
+    suite.addTest(SignerTestCase('test_load_certificates'))
+    suite.addTest(SignerTestCase('test_get_signer_id'))
+    suite.addTest(SignerTestCase('test_sign'))
     return suite
 
 

@@ -70,6 +70,7 @@ class WaveFederationRemote(object):
         applied_wavelet_delta.ParseFromString(base64.b64decode(content))
         #this would most likely be the place to do some signature checking, but we skip this for now
 
+        print applied_wavelet_delta
 
         deltaProtocolBuffer = common_pb2.ProtocolWaveletDelta()
         deltaProtocolBuffer.ParseFromString(applied_wavelet_delta.signed_original_delta.delta)

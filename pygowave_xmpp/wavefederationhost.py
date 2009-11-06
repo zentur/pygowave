@@ -141,7 +141,7 @@ class WaveFederationHost(object):
             delta = Delta.objects.filter(wavelet=wavelet).get(version=i+1)
 
             #FIXME: delta in database does not contain author
-            deltaProtocolBuffer = waveprotocolbuffer.getWaveletDelta(delta, 'murk@localhost')
+            deltaProtocolBuffer = waveprotocolbuffer.getWaveletDelta(delta, 'murk@localhost', self.service.signer)
             app_delta = waveprotocolbuffer.getAppliedWaveletDelta(deltaProtocolBuffer, self.service.signer)
 
             data = base64.b64encode(app_delta.SerializeToString())

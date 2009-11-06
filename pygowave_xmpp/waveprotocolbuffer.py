@@ -52,7 +52,7 @@ def addDocumentInsertOperation(op, document_id, item_count, characters):
     comp.characters = characters
 
 
-def getHistoryHash(version, wavelet_name):
+def getHistoryHash(version, wavelet_name, signer):
     """
     if the version of delta is 0, the history hash is simply the wavelet-name
 
@@ -94,9 +94,9 @@ def getHistoryHash(version, wavelet_name):
         wavelet = Wavelet.objects.get(pk=waveId+'!'+waveletId)
         delta = Delta.objects.filter(wavelet=wavelet).get(version=version)
 
-        d = getWaveletDelta(delta, author)
+        d = getWaveletDelta(delta, author, signer)
         print "delta for version:", version, d
-        app_delta = getAppliedWaveletDelta(d)
+        app_delta = getAppliedWaveletDelta(d, signer)
         print "appliedDelta", app_delta
         prevHash = d.hashed_version.history_hash
 
@@ -111,7 +111,7 @@ def getHistoryHash(version, wavelet_name):
         return h
         
 
-def getWaveletDelta(delta, author):
+def getWaveletDelta(delta, author, signer):
     """
     creates the delta from the models.Delta class
 
@@ -124,10 +124,10 @@ def getWaveletDelta(delta, author):
     operations = simplejson.loads(delta.operations)
     wavelet_name = delta.wavelet.wavelet_name()
 
-    return getWaveletDelta2(version, operations, wavelet_name, author)
+    return getWaveletDelta2(version, operations, wavelet_name, author, signer)
 
 
-def getWaveletDelta2(version, operations, wavelet_name, author):
+def getWaveletDelta2(version, operations, wavelet_name, author, signer):
     """
     Return an instance of ProtocolWaveletDelta
 
@@ -143,7 +143,7 @@ def getWaveletDelta2(version, operations, wavelet_name, author):
 
     delta = common_pb2.ProtocolWaveletDelta()
     delta.hashed_version.version = version
-    delta.hashed_version.history_hash = getHistoryHash(version, wavelet_name)
+    delta.hashed_version.history_hash = getHistoryHash(version, wavelet_name, signer)
     delta.author = author
 
     for item in operations:
@@ -157,22 +157,16 @@ def getWaveletDelta2(version, operations, wavelet_name, author):
 
     return delta
 
-def getAppliedWaveletDelta(delta, signer=None):
+def getAppliedWaveletDelta(delta, signer):
 
     app_delta = common_pb2.ProtocolAppliedWaveletDelta()
     app_delta.signed_original_delta.delta = delta.SerializeToString()
 
     sig = app_delta.signed_original_delta.signature.add()
 
-#    if True:
-    if not signer:
-        sig.signature_bytes = 'some signature'
-        sig.signer_id = 'some_signer_id'
-        sig.signature_algorithm = common_pb2.ProtocolSignature.SHA1_RSA
-    else:
-        sig.signature_bytes = signer.getSignature()
-        sig.signer_id = signer.getSignerId()
-        sig.signature_algorithm = common_pb2.ProtocolSignature.SHA1_RSA
+    sig.signature_bytes = signer.sign(delta.SerializeToString())
+    sig.signer_id = signer.get_signer_id()
+    sig.signature_algorithm = common_pb2.ProtocolSignature.SHA1_RSA
 
     #HashedVersion is optional, so leave it for now
     app_delta.operations_applied = len(delta.operation)
