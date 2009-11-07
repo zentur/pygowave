@@ -20,17 +20,17 @@
 
 """
 
-import hmac
 import hashlib
 import base64
-from OpenSSL.crypto import load_certificate, dump_certificate, FILETYPE_PEM, FILETYPE_ASN1
+from M2Crypto.X509 import load_cert
+from M2Crypto.RSA import load_key
 
 
 class Signer(object):
     """
     TODO
 
-    Certificates are stored as a list of pyopenssl's x509 objects
+    Certificates are stored as a list of M2Crypto's x509 objects
     """
 
 
@@ -41,7 +41,6 @@ class Signer(object):
         self.load_certificates(certfile)
         self.load_keyfile(keyfile)
 
-        self.certificates = ['some_certificate']
         #TODO make algorithm configurable
         self.algorithm = hashlib.sha1
         pass
@@ -54,8 +53,11 @@ class Signer(object):
         @param {payload} the data to be signed
         """
 
-        h = hmac.new(self.signingkey, payload, self.algorithm)
-        return h.digest()
+        h = hashlib.sha1()
+        h.update(payload)
+        data = h.digest()
+
+        return self.private_key.private_encrypt(data, 1)
 
 
     def get_signer_id(self):
@@ -63,7 +65,7 @@ class Signer(object):
         Return the signer id of this signer
         """
 
-        return 'some_signer_id'
+        return self.signer_id
 
 
     def _calculate_signer_id(self):
@@ -78,13 +80,12 @@ class Signer(object):
         pkipath = ''
 
         for cert in self.certificates:
-            pkipath += dump_certificate(FILETYPE_ASN1, cert)
+            pkipath += cert.as_der()
 
         h = hashlib.sha1()
         h.update(pkipath)
         signer_id = h.digest()
-
-        self.signer_id = base64.b64encode(signer_id)
+        self.signer_id = signer_id
 
 
     def get_cerfificate_chain(self):
@@ -97,18 +98,12 @@ class Signer(object):
         We load the certificate from the file provided in PEM format,
         we may need to load more than one file but one's complex enough for testing ;)
 
-        TEST: It looks like newlines and the ...BEGIN CERTIFICATE... stuff is ignored by pyopenssl, thanks ;)
-
         after the certificates are loaded, we calculate the signer id
         """
 
         self.certificates = []
 
-        f = open(certfile)
-        data = f.read()
-        f.close()
-
-        certificate = load_certificate(FILETYPE_PEM, data)
+        certificate = load_cert(certfile)
     
         self.certificates.append(certificate)
 
@@ -119,9 +114,6 @@ class Signer(object):
         """
         """
 
-        f = open(keyfile)
-        data = f.read()
-        f.close()
-        
-        self.signingkey = 'some_signing_key'
+        self.private_key = load_key('cert.key')
+
 
