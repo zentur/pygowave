@@ -22,7 +22,7 @@
 
 import hashlib
 import base64
-from M2Crypto.X509 import load_cert
+from M2Crypto.X509 import load_cert, load_cert_string
 from M2Crypto.RSA import load_key
 
 
@@ -85,6 +85,7 @@ class Signer(object):
         h = hashlib.sha1()
         h.update(pkipath)
         signer_id = h.digest()
+
         self.signer_id = signer_id
 
 
@@ -116,4 +117,51 @@ class Signer(object):
 
         self.private_key = load_key('cert.key')
 
+
+class Verifier(object):
+    """
+    used to verify signatures of incoming deltas
+    like in the Signer, the certificates are a list of X509 objects
+    """
+
+    def __init__(self, certificates):
+        """
+        """
+        self.certificates = certificates
+        #we retreive the public key to decrypt the message from the first certificate in the list
+        self.public_key = self.certificates[0].get_pubkey()
+        self.algorithm = hashlib.sha1
+
+
+    def verify(self, payload, signature):
+        """
+        verify a signature by comparing the digested payload with decrypted signature
+        """
+
+        h = self.algorithm()
+        h.update(payload)
+        data = h.digest()
+
+        self.public_key.verify_init()
+        self.public_key.verify_update(data)
+
+        return self.public_key.verify_final(signature)
+
+def split_len(seq, length):
+    return [seq[i:i+length] for i in range(0, len(seq), length)]
+
+def VerifierFromString(certificates):
+    """
+    convert certificates from a list of strings to a list of X509 objects and return a
+    Verifier with these certificates
+    """
+
+    l = []
+    for cert in certificates:
+        #FIXME: ugly to add those strings here
+        
+        x509 = load_cert_string('-----BEGIN CERTIFICATE-----\n'+'\n'.join(split_len(cert,64))+'\n-----END CERTIFICATE-----')
+        l.append(x509)
+
+    return Verifier(l)
 

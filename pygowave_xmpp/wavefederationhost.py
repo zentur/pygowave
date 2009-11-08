@@ -28,22 +28,7 @@ from django.utils import simplejson
 import waveprotocolbuffer
 from pygowave_server.models import Wavelet, Delta
 from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
-
-
-class RemoteHost(object):
-    """
-    Object representing a remote host, used to
-    - implement a per-host resend queue
-    - storing received certificates
-    """
-
-    def __init__(self, domain):
-        self.domain = domain
-        self.certificates = []
-
-    def updateCertificates(self, certificates):
-        print "Updating certificates for host/domain:", self.domain
-        self.certificates = certificates
+from remotehost import RemoteHost
 
 
 class WaveFederationHost(object):
@@ -276,6 +261,7 @@ class WaveFederationHost(object):
             remote = self.service.remoteHosts[remote_domain]
         else:
             remote = RemoteHost(remote_domain)
+            self.service.remoteHosts[remote_domain] = remote
 
         certificates = []
 

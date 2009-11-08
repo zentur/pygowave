@@ -29,7 +29,7 @@ from django.utils import simplejson
 import common_pb2
 from pygowave_server.models import Wave, Wavelet, Participant, Delta
 from wavefederationservice import NS_XMPP_RECEIPTS, NS_DISCO_INFO, NS_DISCO_ITEMS, NS_PUBSUB, NS_PUBSUB_EVENT, NS_WAVE_SERVER
-
+from remotehost import RemoteHost
 
 class WaveFederationRemote(object):
     """
@@ -68,12 +68,21 @@ class WaveFederationRemote(object):
             
         applied_wavelet_delta = common_pb2.ProtocolAppliedWaveletDelta()
         applied_wavelet_delta.ParseFromString(base64.b64decode(content))
-        #this would most likely be the place to do some signature checking, but we skip this for now
 
         print applied_wavelet_delta
-
+        
         deltaProtocolBuffer = common_pb2.ProtocolWaveletDelta()
         deltaProtocolBuffer.ParseFromString(applied_wavelet_delta.signed_original_delta.delta)
+
+        remote_domain = 'fedone.ferrum-et-magica.de'
+        if self.service.remoteHosts.has_key(remote_domain):
+            remote = self.service.remoteHosts[remote_domain]
+            #FIXME: we only do signature checking if we have the certificates for the remote host
+            # we should retreive them here by a get signer request before we continue
+            if remote.verifier.verify(deltaProtocolBuffer.SerializeToString(), applied_wavelet_delta.signed_original_delta.signature[0].signature_bytes):
+                print "SIGNATURE VERIFICATION OK"
+            else:
+                print "SIGNATURE VERIFICATION FAILED!"
 
         print deltaProtocolBuffer
         
