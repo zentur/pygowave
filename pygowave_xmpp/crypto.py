@@ -22,7 +22,7 @@
 
 import hashlib
 import base64
-from M2Crypto.X509 import load_cert, load_cert_string
+from M2Crypto.X509 import load_cert, load_cert_string, X509_Stack
 from M2Crypto.RSA import load_key
 
 
@@ -55,9 +55,9 @@ class Signer(object):
 
         h = hashlib.sha1()
         h.update(payload)
-        data = h.digest()
+        payload = h.digest()
 
-        return self.private_key.private_encrypt(data, 1)
+        return self.private_key.sign(payload, algo='sha1')
 
 
     def get_signer_id(self):
@@ -76,14 +76,15 @@ class Signer(object):
         first certificate is the "nearest" (e.g. the one generated for this very server)
         and the following are the rest of the certificate chain up to the CA's cert
         """
-
-        pkipath = ''
+        #FIXME: still broken
+        stack = X509_Stack()
+        seq = '0\016'
 
         for cert in self.certificates:
-            pkipath += cert.as_der()
-
+            stack.push(cert)
+            seq += '\026\005' + cert.as_der()
         h = hashlib.sha1()
-        h.update(pkipath)
+        h.update(seq)
         signer_id = h.digest()
 
         self.signer_id = signer_id
@@ -138,12 +139,9 @@ class Verifier(object):
         verify a signature by comparing the digested payload with decrypted signature
         """
 
-        h = self.algorithm()
-        h.update(payload)
-        data = h.digest()
-
+        self.public_key.reset_context(md='sha1')
         self.public_key.verify_init()
-        self.public_key.verify_update(data)
+        self.public_key.verify_update(payload)
 
         return self.public_key.verify_final(signature)
 

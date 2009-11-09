@@ -23,16 +23,17 @@ class SignerTestCase(unittest.TestCase):
     def test_get_signer_id(self):
         """
         """
-        testid = '\xa0b\x920\xe1\x88\x1d\xd7\xc9JQ\xc9\x9es\xfd\xc0@\xce\x93\x8e'
+        testid = '\237\247\017)P@s_\024\350\221T\262(\310f\311\2133k\320\227\005\266D\231\034\354\231\025\033\n'
         self.assertEqual(testid, self.signer.get_signer_id())
 
 
     def test_sign(self):
         """
         """
-        teststring = 'n\xca\x04)Jl\xc5~\x96C)\xda\r\xf5\xb62\xc3\xe9\xfb\xe8V\xee\xa1\x9b\x1f\xb9\x93QM\'\xa0b\xbc\x05:9X\x97|\xd5\xd3\x9c\x94\xf4\xc5\x8df\xdc"F\xc7\x15N\x88\xfc\x1d\xf7/n%\xf8c\x9a&Cf\x8e\x0e\x0b\xbf>{-\xe6ZG.x4\x9fuz\x9d\xb2d\xd0\xeb\x9d~\r\xdf\xab\x0e,6\xf4\xd8mY\x1f$\xbd\xdc\x81\xd4\x81\x9dqE\xd3\x07\x12]\x81G\xfe\xdb\x83\xda\xbe[\xb4\x82\xec\xee\xce1\x8c'
+        expected_signature = 'NG\247G\354\313p\305\003\346\020d\r\377\355\022-9).2.\325\360\322\274\312\217\202\355\272\367\235B\r\313L.\202\231\371Z\262\304p\273\307\355\3377Y\n&b[\217\262\000\332 \340\322;\035;\005\032\226j#X\321\312\333Y\251\031j`h\256J\205\035t\371_\261\241\004\221Q\200\254\276:\357T\315\2653\232\243\0042\021[\267\215\323\352\225_\325\212Z\216\332Fh\273\240/\273\255\377\350Z'
 
-        self.assertEqual(teststring, self.signer.sign('teststring'))
+        teststring = '\n\030\010\003\022\024\221\r\331\230\357\270\024\353\352ft\221\261jR@\014\207\315\265\022\037murk@fedone.ferrum-et-magica.de\032H\032F\n\004main\022>\n\002(\003\n/\032-\n\004line\022%\n\002by\022\037murk@fedone.ferrum-et-magica.de\n\002 \001\n\003\022\001b'
+        self.assertEqual(expected_signature, self.signer.sign(teststring))
 
 
 def signer_suite():
@@ -55,9 +56,11 @@ class VerifierTestCase(unittest.TestCase):
         test that verify works
         """
 
-        testsignature = 'n\xca\x04)Jl\xc5~\x96C)\xda\r\xf5\xb62\xc3\xe9\xfb\xe8V\xee\xa1\x9b\x1f\xb9\x93QM\'\xa0b\xbc\x05:9X\x97|\xd5\xd3\x9c\x94\xf4\xc5\x8df\xdc"F\xc7\x15N\x88\xfc\x1d\xf7/n%\xf8c\x9a&Cf\x8e\x0e\x0b\xbf>{-\xe6ZG.x4\x9fuz\x9d\xb2d\xd0\xeb\x9d~\r\xdf\xab\x0e,6\xf4\xd8mY\x1f$\xbd\xdc\x81\xd4\x81\x9dqE\xd3\x07\x12]\x81G\xfe\xdb\x83\xda\xbe[\xb4\x82\xec\xee\xce1\x8c'
+        testsignature = 'NG\247G\354\313p\305\003\346\020d\r\377\355\022-9).2.\325\360\322\274\312\217\202\355\272\367\235B\r\313L.\202\231\371Z\262\304p\273\307\355\3377Y\n&b[\217\262\000\332 \340\322;\035;\005\032\226j#X\321\312\333Y\251\031j`h\256J\205\035t\371_\261\241\004\221Q\200\254\276:\357T\315\2653\232\243\0042\021[\267\215\323\352\225_\325\212Z\216\332Fh\273\240/\273\255\377\350Z'
+        teststring = '\n\030\010\003\022\024\221\r\331\230\357\270\024\353\352ft\221\261jR@\014\207\315\265\022\037murk@fedone.ferrum-et-magica.de\032H\032F\n\004main\022>\n\002(\003\n/\032-\n\004line\022%\n\002by\022\037murk@fedone.ferrum-et-magica.de\n\002 \001\n\003\022\001b'
 
-        self.assert_(self.verifier.verify('teststring', testsignature) == True)
+        result = self.verifier.verify(teststring, testsignature)
+        self.assertEqual(result, 1)
 
 
     def test_verify_false(self):
@@ -65,7 +68,7 @@ class VerifierTestCase(unittest.TestCase):
         test that verify return false with bad data
         """
 
-        testsignature = 'n\xca\x04)Jl\xc5~\x96C)\xda\r\xf5\xb62\xc3\xe9\xfb\xe8V\xee\xa1\x9b\x1f\xb9\x93QM\'\xa0b\xbc\x05:9X\x97|\xd5\xd3\x9c\x94\xf4\xc5\x8df\xdc"F\xc7\x15N\x88\xfc\x1d\xf7/n%\xf8c\x9a&Cf\x8e\x0e\x0b\xbf>{-\xe6ZG.x4\x9fuz\x9d\xb2d\xd0\xeb\x9d~\r\xdf\xab\x0e,6\xf4\xd8mY\x1f$\xbd\xdc\x81\xd4\x81\x9dqE\xd3\x07\x12]\x81G\xfe\xdb\x83\xda\xbe[\xb4\x82\xec\xee\xce1\x8c'
+        testsignature = 'NG\247G\354\313p\305\003\346\020d\r\377\355\022-9).2.\325\360\322\274\312\217\202\355\272\367\235B\r\313L.\202\231\371Z\262\304p\273\307\355\3377Y\n&b[\217\262\000\332 \340\322;\035;\005\032\226j#X\321\312\333Y\251\031j`h\256J\205\035t\371_\261\241\004\221Q\200\254\276:\357T\315\2653\232\243\0042\021[\267\215\323\352\225_\325\212Z\216\332Fh\273\240/\273\255\377\350Z'
 
         self.assert_(self.verifier.verify('bad string', testsignature) == False)
 

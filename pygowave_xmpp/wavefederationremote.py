@@ -74,9 +74,18 @@ class WaveFederationRemote(object):
         deltaProtocolBuffer = common_pb2.ProtocolWaveletDelta()
         deltaProtocolBuffer.ParseFromString(applied_wavelet_delta.signed_original_delta.delta)
 
-        remote_domain = 'fedone.ferrum-et-magica.de'
-        if self.service.remoteHosts.has_key(remote_domain):
-            remote = self.service.remoteHosts[remote_domain]
+        #TODO wrap this up in a function, we will need it several times
+        waveletDomain, waveId, waveletId = wavelet_name.replace('wave://','').split('/')
+
+        if '$' in waveId:
+            waveDomain, waveId = waveId.split('$')
+        else:
+            waveDomain = waveletDomain
+
+        #since this is an update to a remote hosted wavelet, we assume that the waveletDomain 
+        #is the same as the domain in the signature 
+        if self.service.remoteHosts.has_key(waveletDomain):
+            remote = self.service.remoteHosts[waveletDomain]
             #FIXME: we only do signature checking if we have the certificates for the remote host
             # we should retreive them here by a get signer request before we continue
             if remote.verifier.verify(deltaProtocolBuffer.SerializeToString(), applied_wavelet_delta.signed_original_delta.signature[0].signature_bytes):
@@ -86,14 +95,6 @@ class WaveFederationRemote(object):
 
         print deltaProtocolBuffer
         
-        #TODO wrap this up in a function, we will need it several times
-        waveletDomain, waveId, waveletId = wavelet_name.replace('wave://','').split('/')
-
-        if '$' in waveId:
-            waveDomain, waveId = waveId.split('$')
-        else:
-            waveDomain = waveletDomain
-
         print waveDomain, waveId, waveletDomain, waveletId
         try:
             wave = Wave.objects.get(id=waveId)
@@ -156,14 +157,6 @@ class WaveFederationRemote(object):
         self.service.xmlstream.send(reply)
 
 
-    def onDiscoInfoResponse(self, iq):
-        """
-
-        """
-
-        pass
-
-
     def sendDiscoItemsResponse(self, iq):
         """
 
@@ -189,10 +182,35 @@ class WaveFederationRemote(object):
 
     def onDiscoItemsResponse(self, iq):
         """
+        usually called when a result to one of our discovery requests is received
 
+        @param {Element} iq result received
         """
 
-        pass
+        #FIXME: a deferred and checking the id of the request would be better
+        for item in xpath.XPathQuery('/iq/query/item').queryForNodes(iq):
+
+            q = domish.Element((None, 'iq'))
+            q.attributes['from'] = self.service.jabberId
+            q.attributes['type'] = 'get'
+            q.attributes['to'] = item.attributes['jid']
+            q.addUniqueId()
+
+            query = q.addElement((NS_DISCO_INFO, 'query'))
+
+            self.service.xmlstream.send(q)
+
+
+    def onDiscoInfoResponse(self, iq):
+        """
+        received during service discovery 
+        """
+
+        for feature in xpath.XPathQuery('/iq/query/feature').queryForNodes(iq):
+            if feature.attributes['var'] == NS_WAVE_SERVER:
+                jid = iq.attributes['from']
+                domain = jid[jid.find('.')+1:]  #trim the hostname and first . from the jid to get the domain
+                self.service.remoteHosts[domain].onJidDiscovered(jid)
 
 
     def sendSubmitRequest(self, wavelet, data):

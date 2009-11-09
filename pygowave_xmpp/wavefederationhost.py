@@ -60,11 +60,10 @@ class WaveFederationHost(object):
         participants = wavelet.participants.all()
         for p in participants:
             if not p.id.endswith('@localhost'):
-                remote = p.id.split('@')[1]
+                remote_domain = p.id.split('@')[1]
 
                 message = domish.Element((None, 'message'))
                 message.attributes['type'] = 'normal'
-                message.attributes['to'] = remote
                 message.attributes['from'] = self.service.jabberId
                 message.addUniqueId()
 
@@ -80,7 +79,7 @@ class WaveFederationHost(object):
                 applied_delta = wavelet_update.addElement((None, 'applied-delta'))
                 applied_delta.addRawXml('<![CDATA[%s]]>' % (data))
 
-                self.service.xmlstream.send(message)
+                self.service.sendToRemoteHost(remote_domain,  message)
 
 
     def onHistoryRequest(self, request):

@@ -2,7 +2,7 @@ Dependencies:
 
 Apart from dependencies on twisted, you need:
 - txampq - which will hopefully be removed soon(tm)
-- pyopenssl
+- m2crypto
 
 Random things about federation.
 

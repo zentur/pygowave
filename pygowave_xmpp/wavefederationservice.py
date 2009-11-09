@@ -43,6 +43,7 @@ import crypto
 from pygowave_server.models import Wavelet, ParticipantConn, Delta
 from wavefederationremote import WaveFederationRemote
 from wavefederationhost import WaveFederationHost
+from remotehost import RemoteHost
 
 class WaveFederationService(component.Service):
     """
@@ -82,6 +83,8 @@ class WaveFederationService(component.Service):
         xmlstream.addObserver(MESSAGE, self.onMessage, 1)
         #TODO: maybe add support for XCP Component Presence
 
+        self.remoteHosts['acmewave.com'] = RemoteHost('acmewave.com', self)
+        self.remoteHosts['acmewave.com'].discoverJid()
 
     def onPresence(self, prs):
         """
@@ -101,7 +104,7 @@ class WaveFederationService(component.Service):
 
         """        
 
-        #FIXME How to get the routing key the right way?
+        #FIXME: How to get the routing key the right way?
         rkey = msg[4]
         participant_conn_key, wavelet_id, message_category = rkey.split(".")
         body = simplejson.loads(msg.content.body)
@@ -210,4 +213,15 @@ class WaveFederationService(component.Service):
             print "Unknown IQ:", iq
 
 
-
+    def sendToRemoteHost(self,  domain,  stanza):
+        """
+        Sends stanzas to a remote host - takes care of creating a RemoteHost object if it does not exist
+        """
+        
+        if self.remoteHosts.has_key(domain):
+            remote = self.remoteHosts[domain]
+        else:
+            remote = RemoteHost(domain,  self)
+            self.remoteHosts[domain] = remote
+            
+        self.remoteHosts[domain].send(stanza)
