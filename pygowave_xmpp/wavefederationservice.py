@@ -159,6 +159,10 @@ class WaveFederationService(component.Service):
                 #we received a wavelet update
                 self.remote.onUpdateMessage(msg)
 
+            elif el.attributes['type'] == 'error':
+                #TODO Better error handling
+                print "Error received"
+
             else:
                 pass
 

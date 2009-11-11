@@ -55,11 +55,6 @@ class WaveFederationRemote(object):
 
         """
 
-        if msg.attributes['type'] == 'error':
-            #TODO Better error handling
-            print "Error received"
-            return
-
         for wavelet_update in xpath.XPathQuery('/message/event/items/item/wavelet-update').queryForNodes(msg):
                     wavelet_name = wavelet_update.attributes['wavelet-name']
 
@@ -223,12 +218,11 @@ class WaveFederationRemote(object):
 
         """
 
-        hoster = wavelet.wavelet_name().split('/')[0]
+        remote_domain = wavelet.wavelet_name().split('/')[0]
 
         iq = domish.Element((None, 'iq'))
         iq.attributes['type'] = 'set'
         iq.attributes['from'] = self.service.jabberId
-        iq.attributes['to']   = hoster
         iq.addUniqueId()
 
         pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
@@ -246,7 +240,7 @@ class WaveFederationRemote(object):
 
         print "Submit request for wavelet %s: %s" % (wavelet, iq.toXml())
 
-        self.service.xmlstream.send(iq)
+        self.service.sendToRemoteHost(remote_domain, iq)
 
 
     def sendHistoryRequest(self, wavelet, start_version, start_version_hash, 
@@ -263,12 +257,11 @@ class WaveFederationRemote(object):
 
         """
         
-        hoster = wavelet.wavelet_name().split('/')[0]
+        remote_domain = wavelet.wavelet_name().split('/')[0]
 
         iq = domish.Element((None, 'iq'))
         iq.attributes['type'] = 'get'
         iq.attributes['from'] = self.service.jabberId
-        iq.attributes['to']   = hoster
         iq.addUniqueId()
 
         pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
@@ -287,5 +280,5 @@ class WaveFederationRemote(object):
 
         print "History request for wavelet %s: %s" % (wavelet, iq.toXml())
 
-        self.service.xmlstream.send(iq)
+        self.service.sendToRemoteHost(remote_domain, iq):
 

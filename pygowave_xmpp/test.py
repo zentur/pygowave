@@ -10,7 +10,8 @@ import crypto
 class SignerTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.signer = crypto.Signer('cert.pem', 'cert.key')
+        #TODO: include known-good certs in the test
+        self.signer = crypto.Signer('/tmp/cert.pem', '/tmp/cert.key')
 
     def test_load_certificates(self):
         """
@@ -47,7 +48,8 @@ def signer_suite():
 class VerifierTestCase(unittest.TestCase):
 
     def setUp(self):
-        cert = load_cert('cert.pem')
+        #TODO include known-good certs in the test
+        cert = load_cert('/tmp/cert.pem')
         self.verifier = crypto.Verifier([cert])
 
 
