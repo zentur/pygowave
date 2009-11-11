@@ -23,6 +23,7 @@ import base64
 import datetime
 
 from twisted.words.xish import domish, xpath
+from twisted.words.protocols.jabber.client import IQ
 
 from django.utils import simplejson
 
@@ -99,10 +100,10 @@ class WaveFederationRemote(object):
             wave.save()
 
         try:
-            #FIXME: get a real user here
-            creator = Participant.objects.get(id='murk@fedone.ferrum-et-magica.de')
+            #FIXME: the author of the delta is in most cases not the creator of the wavelet
+            creator = Participant.objects.get(id=deltaProtocolBuffer.author)
         except:
-            creator = Participant(id='murk@fedone.ferrum-et-magica.de')
+            creator = Participant(id=deltaProtocolBuffer.author)
             creator.last_contact = datetime.datetime.now()
             creator.save()
 
@@ -113,6 +114,7 @@ class WaveFederationRemote(object):
             wavelet = Wavelet(id=_id, domain=waveletDomain)
             wavelet.creator=creator
             wavelet.wave=wave
+            #TODO: participants should be added by applying the delta using OT
             wavelet.participants.add(creator)
             wavelet.version=0
             wavelet.is_root = True
@@ -125,6 +127,12 @@ class WaveFederationRemote(object):
         reply.addElement(('urn:xmpp:receipts', 'received'))
 
         self.service.xmlstream.send(reply)
+
+        #request the history for this wavelet based on the wavelets version
+        #and the version of the received delta
+
+        print "Need to request history for wavelet %s: version %s to %s" % (wavelet.wavelet_name(), wavelet.version, deltaProtocolBuffer.hashed_version.version)
+        self.sendHistoryRequest(wavelet, wavelet.version, '', deltaProtocolBuffer.hashed_version.version, '')
 
         
     def sendDiscoInfoResponse(self, iq):
@@ -258,27 +266,68 @@ class WaveFederationRemote(object):
         """
         
         remote_domain = wavelet.wavelet_name().split('/')[0]
+        #FIXME: "block" until discovery has been made instead of manually adding "wave."
+        remote_domain = 'wave.' + remote_domain
 
-        iq = domish.Element((None, 'iq'))
-        iq.attributes['type'] = 'get'
+        iq = IQ(self.service.xmlstream, 'get')
         iq.attributes['from'] = self.service.jabberId
         iq.addUniqueId()
 
         pubsub = iq.addElement((NS_PUBSUB, 'pubsub'))
 
-        items = publish.addElement((None, 'items'))
+        items = pubsub.addElement((None, 'items'))
         items.attributes['node'] = 'wavelet'
 
         delta_history = items.addElement((NS_WAVE_SERVER, 'delta-history'))
-        delta_history.attributes['start-version'] = start_version
+        delta_history.attributes['start-version'] = str(start_version)
         delta_history.attributes['start-version-hash'] = start_version_hash
-        delta_history.attributes['end-version'] = end_version
+        delta_history.attributes['end-version'] = str(end_version)
         delta_history.attributes['end-version-hash'] = end_version_hash
         delta_history.attributes['wavelet-name'] = wavelet.wavelet_name()
         if response_length_limit:
             delta_history.attributes['response-length-limit'] = response_length_limit
 
-        print "History request for wavelet %s: %s" % (wavelet, iq.toXml())
+        # you gotta love twisted for that, but it bypasses our per-remote resend queue and discovery stuff
+        #self.service.sendToRemoteHost(remote_domain, iq)
 
-        self.service.sendToRemoteHost(remote_domain, iq):
+        iq.addCallback(self.onHistoryResponse, wavelet)
+        iq.send(remote_domain)
+
+
+    def onHistoryResponse(self, wavelet, iq):
+        """
+        React on incoming wavelet history - print out some info on received data, no saving atm
+        
+        @param {Wavelet} wavelet the wavelet object, this is passed by the sendHistoryRequest function
+        @param {Element} iq the reply from the remote server, this is passed by Twisted's IQ callback feature
+        """
+
+        print "Received wavelet history for wavelet", wavelet
+
+        for applied_delta in xpath.XPathQuery('/iq/pubsub/items/item/applied-delta').queryForNodes(iq):
+
+            appliedDeltaProtocolBuffer = common_pb2.ProtocolAppliedWaveletDelta()
+            appliedDeltaProtocolBuffer.ParseFromString(base64.b64decode(str(applied_delta)))
+
+            #print appliedDeltaProtocolBuffer
+
+            #if self.service.remoteHosts.has_key(waveletDomain):
+            #    remote = self.service.remoteHosts[waveletDomain]
+            #    #FIXME: we only do signature checking if we have the certificates for the remote host
+            #    # we should retreive them here by a get signer request before we continue
+            #    if remote.verifier.verify(deltaProtocolBuffer.SerializeToString(), applied_wavelet_delta.signed_original_delta.signature[0].signature_bytes):
+            #        print "SIGNATURE VERIFICATION OK"
+            #    else:
+            #        print "SIGNATURE VERIFICATION FAILED"
+
+            deltaProtocolBuffer = common_pb2.ProtocolWaveletDelta()
+            deltaProtocolBuffer.ParseFromString(appliedDeltaProtocolBuffer.signed_original_delta.delta)
+
+            #print deltaProtocolBuffer
+
+        for commit_notice in xpath.XPathQuery('/iq/pubsub/items/item/commit-notice').queryForNodes(iq):
+            print "Ignored:", commit_notice.toXml()
+
+        for history_truncated in xpath.XPathQuery('/iq/pubsub/items/item/history-truncated').queryForNodes(iq):
+            print "Ignored:", history_truncated.toXml()
 

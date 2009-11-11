@@ -157,7 +157,7 @@ class WaveFederationService(component.Service):
                 #we received a wavelet update
                 self.remote.onUpdateMessage(msg)
 
-            elif el.attributes['type'] == 'error':
+            elif msg.attributes['type'] == 'error':
                 #TODO Better error handling
                 print "Error received"
 
@@ -186,9 +186,9 @@ class WaveFederationService(component.Service):
                         elif items.attributes['node'] == 'signer':
                             self.host.onGetSignerRequest(iq)
                         else:
-                            print "Unknown IQ:", iq
+                            print "Unknown IQ:", iq.toXml()
                 else:
-                    print "Unknown IQ:", iq
+                    print "Unknown IQ:", iq.toXm()
 
         elif iq.attributes['type'] == 'result':
             for el in iq.elements():
@@ -196,8 +196,13 @@ class WaveFederationService(component.Service):
                     self.remote.onDiscoInfoResponse(iq)
                 elif el.uri == NS_DISCO_ITEMS:
                     self.remote.onDiscoItemsResponse(iq)
+                elif el.uri == NS_PUBSUB:
+                    #we have this to prevent errors on unknown incoming IQ's
+                    #the incoming data is handled by a callback added to the
+                    #IQ requesting this data
+                    pass
                 else:
-                    print "Unknown IQ:", iq
+                    print "Unknown IQ:", iq.toXml()
 
         elif iq.attributes['type'] == 'set':
             for el in iq.elements():
