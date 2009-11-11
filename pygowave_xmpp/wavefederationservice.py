@@ -83,8 +83,6 @@ class WaveFederationService(component.Service):
         xmlstream.addObserver(MESSAGE, self.onMessage, 1)
         #TODO: maybe add support for XCP Component Presence
 
-        self.remoteHosts['acmewave.com'] = RemoteHost('acmewave.com', self)
-        self.remoteHosts['acmewave.com'].discoverJid()
 
     def onPresence(self, prs):
         """
